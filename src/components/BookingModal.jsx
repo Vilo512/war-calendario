@@ -3,7 +3,7 @@ import { doc, runTransaction } from 'firebase/firestore';
 import { db } from '../firebase/config';
 
 export default function BookingModal({ isOpen, onClose }) {
-  const [formData, setFormData] = useState({ name: '', room: 'Estudio A', time: '' });
+  const [formData, setFormData] = useState({ name: '', room: 'Estudio A', date: '', time: '' });
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -15,7 +15,7 @@ export default function BookingModal({ isOpen, onClose }) {
     setErrorMsg('');
     
     // Normalizar ID de documento para la sala y hora seleccionadas
-    const bookingId = `${formData.room.replace(/\s+/g, '_')}_${formData.time.replace(':', '-')}`;
+    const bookingId = `${formData.room.replace(/\s+/g, '_')}_${formData.date}_${formData.time.replace(':', '-')}`;
     const bookingRef = doc(db, 'bookings', bookingId);
 
     setSubmitting(true);
@@ -67,15 +67,29 @@ export default function BookingModal({ isOpen, onClose }) {
               <option value="Sala Conferencias">Sala Conferencias</option>
             </select>
           </div>
-          <div className="form-group">
-            <label>Hora</label>
-            <input 
-              type="time" 
-              className="form-input" 
-              value={formData.time}
-              onChange={(e) => setFormData({...formData, time: e.target.value})}
-              required
-            />
+          <div className="form-group" style={{display: 'flex', gap: '1rem', flexDirection: 'row'}}>
+            <div style={{flex: 1}}>
+              <label>Fecha</label>
+              <input 
+                type="date" 
+                className="form-input" 
+                style={{width: '100%'}}
+                value={formData.date}
+                onChange={(e) => setFormData({...formData, date: e.target.value})}
+                required
+              />
+            </div>
+            <div style={{flex: 1}}>
+              <label>Hora</label>
+              <input 
+                type="time" 
+                className="form-input" 
+                style={{width: '100%'}}
+                value={formData.time}
+                onChange={(e) => setFormData({...formData, time: e.target.value})}
+                required
+              />
+            </div>
           </div>
           
           {errorMsg && (

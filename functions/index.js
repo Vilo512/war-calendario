@@ -11,7 +11,7 @@ const formatICalDate = (date) => {
 
 exports.getICalFeed = onRequest(async (req, res) => {
   try {
-    const reservationsRef = db.collection("reservations");
+    const reservationsRef = db.collection("bookings");
     const snapshot = await reservationsRef.get();
 
     let icalContent = "BEGIN:VCALENDAR\r\n";
@@ -23,7 +23,14 @@ exports.getICalFeed = onRequest(async (req, res) => {
 
     snapshot.forEach(doc => {
       const data = doc.data();
-      const startTime = data.startTime ? data.startTime.toDate() : new Date();
+      let startTime = new Date();
+      if (data.date && data.time) {
+        const [year, month, day] = data.date.split('-');
+        const [hours, minutes] = data.time.split(':');
+        startTime = new Date(year, parseInt(month, 10) - 1, day, hours, minutes, 0, 0);
+      } else if (data.startTime) {
+        startTime = data.startTime.toDate ? data.startTime.toDate() : new Date(data.startTime);
+      }
       // Asumimos duración de 1 hora por defecto si no hay endTime
       const endTime = data.endTime ? data.endTime.toDate() : new Date(startTime.getTime() + 60 * 60 * 1000);
       const title = data.gameTitle || data.title || "Reserva";

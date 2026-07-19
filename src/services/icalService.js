@@ -21,7 +21,11 @@ export const generateICalContent = async () => {
     querySnapshot.forEach(doc => {
       const data = doc.data();
       let startTime = new Date();
-      if (data.time) {
+      if (data.date && data.time) {
+        const [year, month, day] = data.date.split('-');
+        const [hours, minutes] = data.time.split(':');
+        startTime = new Date(year, parseInt(month, 10) - 1, day, hours, minutes, 0, 0);
+      } else if (data.time) {
         const [hours, minutes] = data.time.split(':');
         startTime.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
       } else if (data.startTime && data.startTime.toDate) {
