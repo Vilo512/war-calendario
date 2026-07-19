@@ -5,10 +5,9 @@ import { db } from '../firebase/config';
 export default function BookingModal({ isOpen, onClose }) {
   const [formData, setFormData] = useState({ name: '', room: 'Estudio A', time: '' });
   const [submitting, setSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   if (!isOpen) return null;
-
-  const [errorMsg, setErrorMsg] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
