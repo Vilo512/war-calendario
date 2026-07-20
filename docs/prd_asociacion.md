@@ -41,10 +41,10 @@ Crear una aplicación web orientada a móviles (mobile-first) para gestionar una
 2. **`UI_Engineer`**: Crear el botón `CalendarSync` conectándolo a dicho endpoint.
 3. **Orquestador**: Asegurar que los componentes de UI leen y escriben correctamente en Firestore.
 
-### Fase 5: Pruebas de Estrés (`QA_Tester`)
-1. Lanzar tests de concurrencia (simular colisiones en reservas).
-2. Testear permisos (intentar hackear turnos de limpieza o modificar reservas ajenas).
-3. Auditar la vista móvil buscando botones inaccesibles o rotos.
+### Fase 5: Pruebas Metodológicas de QA (`QA_Tester`)
+1. Aplicar Técnicas ISTQB: Partición de equivalencia, valores límite y tablas de decisión en toda la app.
+2. Evaluar Concurrencia y Seguridad (condiciones de carrera, aislamiento de roles y datos).
+3. Protocolo de reporte: Entregar informe formal de calidad al Orquestador (con matriz de casos probados, nivel de riesgo y resumen "para dummies"), INCLUSO si no se hallaron defectos.
 
 ## 5. Criterios de Aceptación Finales
 - Un socio puede reservar una sala libre desde su móvil en menos de 3 clics.

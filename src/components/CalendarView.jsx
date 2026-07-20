@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, doc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 
-export default function CalendarView() {
+export default function CalendarView({ user }) {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('month'); // 'month' or 'week'
@@ -113,6 +113,20 @@ export default function CalendarView() {
   const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
   const dayNames = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
+  const isAdmin = user && user.email === 'admin@warcalendario.com';
+  const canDelete = (booking) => isAdmin || (user && booking.userId === user.uid);
+
+  const handleDelete = async (booking) => {
+    if (window.confirm('¿Estás seguro de que deseas cancelar esta reserva?')) {
+      try {
+        await deleteDoc(doc(db, 'bookings', booking.id));
+      } catch (error) {
+        console.error("Error al borrar:", error);
+        alert("No tienes permiso para borrar esta reserva.");
+      }
+    }
+  };
+
   const renderMonthView = () => {
     const days = getMonthDays();
     const todayStr = formatDateString(new Date());
@@ -167,8 +181,13 @@ export default function CalendarView() {
                       {booking.room}
                     </span>
                   </div>
-                  <div className="booking-time">
+                  <div className="booking-time" style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
                     {booking.time}
+                    {canDelete(booking) && (
+                      <button onClick={() => handleDelete(booking)} style={{background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '2px', fontSize: '1.2rem'}} title="Borrar Reserva">
+                        ×
+                      </button>
+                    )}
                   </div>
                 </div>
               ))
@@ -202,7 +221,12 @@ export default function CalendarView() {
                 ) : (
                   dayBookings.map((booking) => (
                     <div key={booking.id} className="booking-card-mini">
-                      <div className="mini-time">{booking.time}</div>
+                      <div className="mini-time" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                        {booking.time}
+                        {canDelete(booking) && (
+                          <button onClick={() => handleDelete(booking)} style={{background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '0', fontSize: '1rem', lineHeight: '1'}} title="Borrar Reserva">×</button>
+                        )}
+                      </div>
                       <div className="mini-name">{booking.name}</div>
                       <div className="mini-room">{booking.room}</div>
                     </div>

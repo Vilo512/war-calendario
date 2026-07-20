@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { doc, runTransaction } from 'firebase/firestore';
 import { db } from '../firebase/config';
 
-export default function BookingModal({ isOpen, onClose }) {
+export default function BookingModal({ isOpen, onClose, user }) {
   const [formData, setFormData] = useState({ name: '', room: 'Estudio A', date: '', time: '' });
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -27,6 +27,9 @@ export default function BookingModal({ isOpen, onClose }) {
         }
         transaction.set(bookingRef, {
           ...formData,
+          userId: user ? user.uid : 'anonymous',
+          userEmail: user ? user.email : '',
+          userName: user ? (user.displayName || user.email) : 'Anónimo',
           createdAt: new Date()
         });
       });

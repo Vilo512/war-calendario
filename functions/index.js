@@ -33,7 +33,7 @@ exports.getICalFeed = onRequest(async (req, res) => {
       }
       // Asumimos duración de 1 hora por defecto si no hay endTime
       const endTime = data.endTime ? data.endTime.toDate() : new Date(startTime.getTime() + 60 * 60 * 1000);
-      const title = data.gameTitle || data.title || "Reserva";
+      const title = data.name || data.gameTitle || data.title || "Reserva";
       const room = data.room || "Sala Principal";
       
       icalContent += "BEGIN:VEVENT\r\n";
