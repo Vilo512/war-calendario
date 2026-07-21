@@ -128,7 +128,7 @@ function App() {
           <CalendarView user={user} userRole={userRole} />
         </div>
         <div style={{display: 'flex', flexDirection: 'column', gap: '1.5rem'}}>
-          <CleaningCard userRole={userRole} />
+          <CleaningCard user={user} userRole={userRole} />
           <div className="glass-panel">
             <h3 style={{fontSize: '1.1rem', marginBottom: '0.5rem'}}>Estadísticas de Hoy</h3>
             <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem'}}>
