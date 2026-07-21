@@ -22,37 +22,11 @@ function App() {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        unsubProfile = onSnapshot(doc(db, 'users', currentUser.uid), async (docSnap) => {
-          const isMasterAdmin = currentUser.email === 'vpalavicino.512@gmail.com';
+        unsubProfile = onSnapshot(doc(db, 'users', currentUser.uid), (docSnap) => {
           if (docSnap.exists()) {
-            const data = docSnap.data();
-            if (isMasterAdmin && data.role !== 'admin') {
-              data.role = 'admin';
-              setUserProfile(data);
-              try {
-                await setDoc(doc(db, 'users', currentUser.uid), { role: 'admin' }, { merge: true });
-              } catch (err) {
-                console.error("Error forzando rol admin:", err);
-              }
-            } else {
-              setUserProfile(data);
-            }
+            setUserProfile(docSnap.data());
           } else {
-            // Autocrear perfil en Firestore si la cuenta ya existía previamente
-            const initialRole = isMasterAdmin ? 'admin' : 'no socio';
-            const newProfile = {
-              uid: currentUser.uid,
-              email: currentUser.email,
-              displayName: currentUser.displayName || currentUser.email,
-              role: initialRole,
-              createdAt: new Date()
-            };
-            setUserProfile(newProfile);
-            try {
-              await setDoc(doc(db, 'users', currentUser.uid), newProfile);
-            } catch (err) {
-              console.error("Error al autocrear documento de perfil:", err);
-            }
+            setUserProfile({ role: 'no socio' });
           }
           setLoadingAuth(false);
         }, (error) => {
