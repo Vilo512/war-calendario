@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, sendPasswordResetEmail } from 'firebase/auth';
-import { auth } from '../firebase/config';
+import { doc, setDoc, getDocs, collection } from 'firebase/firestore';
+import { auth, db } from '../firebase/config';
 
 export default function Login() {
   const [isLogin, setIsLogin] = useState(true);
@@ -28,6 +29,18 @@ export default function Login() {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(userCredential.user, {
           displayName: name
+        });
+
+        // Crear documento del perfil en Firestore
+        const usersSnapshot = await getDocs(collection(db, 'users'));
+        const isFirstUser = usersSnapshot.empty;
+
+        await setDoc(doc(db, 'users', userCredential.user.uid), {
+          uid: userCredential.user.uid,
+          email: userCredential.user.email,
+          displayName: name || userCredential.user.email,
+          role: isFirstUser ? 'admin' : 'no socio',
+          createdAt: new Date()
         });
       }
     } catch (error) {

@@ -2,21 +2,34 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
   
-    // Función helper para verificar si es admin
+    // Función helper para verificar si un usuario tiene rol de admin en Firestore
     function isAdmin() {
-      return request.auth != null && request.auth.token.email == 'admin@warcalendario.com';
+      return request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    match /bookings/{bookingId} {
-      // Cualquiera autenticado puede leer las reservas
+    // Colección de Perfiles de Usuario
+    match /users/{userId} {
       allow read: if request.auth != null;
-      // Para crear, debe estar autenticado y el userId debe coincidir
+      // El usuario puede crear su propio perfil (por defecto no socio), pero solo un Admin puede cambiar su rol a 'admin' o 'socio'
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update, delete: if isAdmin() || (request.auth != null && request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']));
+    }
+
+    // Colección de Reservas
+    match /bookings/{bookingId} {
+      allow read: if request.auth != null;
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      // Para actualizar/borrar, debe ser el dueño o el admin
       allow update, delete: if isAdmin() || (request.auth != null && resource.data.userId == request.auth.uid);
     }
     
-    // Resto de colecciones cerradas por defecto o de solo lectura si aplica
+    // Colección de Salas (Rooms)
+    match /rooms/{roomId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
     match /{document=**} {
       allow read: if request.auth != null;
       allow write: if isAdmin();

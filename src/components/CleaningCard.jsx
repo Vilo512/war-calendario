@@ -1,7 +1,12 @@
 import React, { useState } from 'react';
 
-export default function CleaningCard() {
+export default function CleaningCard({ userRole }) {
   const [completed, setCompleted] = useState(false);
+
+  // Solo socios y administradores ven la tarjeta de limpieza
+  if (userRole !== 'socio' && userRole !== 'admin') {
+    return null;
+  }
 
   if (completed) {
     return (
