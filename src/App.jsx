@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { auth, db } from './firebase/config';
 import CalendarView from './components/CalendarView';
 import BookingModal from './components/BookingModal';
@@ -22,11 +22,26 @@ function App() {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        unsubProfile = onSnapshot(doc(db, 'users', currentUser.uid), (docSnap) => {
+        unsubProfile = onSnapshot(doc(db, 'users', currentUser.uid), async (docSnap) => {
           if (docSnap.exists()) {
             setUserProfile(docSnap.data());
           } else {
-            setUserProfile({ role: 'no socio' });
+            // Autocrear perfil en Firestore si la cuenta ya existía previamente
+            const isMasterAdmin = currentUser.email === 'vpalavicino.512@gmail.com';
+            const initialRole = isMasterAdmin ? 'admin' : 'no socio';
+            const newProfile = {
+              uid: currentUser.uid,
+              email: currentUser.email,
+              displayName: currentUser.displayName || currentUser.email,
+              role: initialRole,
+              createdAt: new Date()
+            };
+            setUserProfile(newProfile);
+            try {
+              await setDoc(doc(db, 'users', currentUser.uid), newProfile);
+            } catch (err) {
+              console.error("Error al autocrear documento de perfil:", err);
+            }
           }
           setLoadingAuth(false);
         }, (error) => {
