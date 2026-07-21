@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
-import { formatWeekRange, getWeekId, calculateCurrentAssignee, getWeeksDiff } from '../utils/cleaningUtils';
+import { formatWeekRange, getWeekId, calculateCurrentAssignee } from '../utils/cleaningUtils';
 
 export default function CleaningCard({ user, userRole }) {
   const [config, setConfig] = useState(null);
   const [weekDoc, setWeekDoc] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showScheduleDropdown, setShowScheduleDropdown] = useState(false);
 
   const weekId = getWeekId();
   const weekRange = formatWeekRange();
@@ -89,6 +90,27 @@ export default function CleaningCard({ user, userRole }) {
   const isSunday = new Date().getDay() === 0;
   const isUrgentWarning = isSunday && !isCompleted;
 
+  // Generar lista de próximos turnos para el desplegable
+  const upcomingWeeks = [];
+  if (members.length > 0 && currentInfo) {
+    const totalWeeksToShow = Math.max(members.length, 6);
+    const now = new Date();
+    for (let i = 0; i < totalWeeksToShow; i++) {
+      const targetDate = new Date(now.getTime() + i * 7 * 24 * 60 * 60 * 1000);
+      const targetIndex = (currentInfo.index + i) % members.length;
+      const targetAssignee = members[targetIndex];
+      const isMe = user && targetAssignee && (targetAssignee.id === user.uid || targetAssignee.name === user.displayName || targetAssignee.name === user.email);
+
+      upcomingWeeks.push({
+        weekNum: i,
+        rangeStr: formatWeekRange(targetDate),
+        assigneeName: targetAssignee ? targetAssignee.name : 'Sin asignar',
+        isMe: isMe,
+        isCurrent: i === 0
+      });
+    }
+  }
+
   return (
     <div className="glass-panel cleaning-card" style={{ borderLeft: isCompleted ? '4px solid var(--success)' : (isUrgentWarning ? '4px solid var(--danger)' : '4px solid var(--accent-primary)') }}>
       <div className="cleaning-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -136,7 +158,7 @@ export default function CleaningCard({ user, userRole }) {
               </p>
             )}
             {userWeeksLeft !== null && !isMyTurn && (
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', margin: 0 }}>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', margin: '0 0 0.5rem 0' }}>
                 {userWeeksLeft === 0 ? 'Te toca esta semana' : `Te tocará en ${userWeeksLeft} semana(s)`}
               </p>
             )}
@@ -145,7 +167,7 @@ export default function CleaningCard({ user, userRole }) {
       </div>
 
       {isCompleted ? (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
           <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
             Limpiado por: {weekDoc?.completedBy || 'Socio'}
           </span>
@@ -157,13 +179,72 @@ export default function CleaningCard({ user, userRole }) {
         </div>
       ) : (
         canComplete && members.length > 0 && (
-          <button className="btn btn-success" style={{ width: '100%' }} onClick={() => handleToggleComplete(true)}>
+          <button className="btn btn-success" style={{ width: '100%', marginBottom: '0.5rem' }} onClick={() => handleToggleComplete(true)}>
             <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
               <polyline points="20 6 9 17 4 12"></polyline>
             </svg>
             Marcar Turno Como Completado
           </button>
         )
+      )}
+
+      {/* Botón desplegable para consultar calendario de turnos futuros */}
+      {members.length > 0 && (
+        <div style={{ marginTop: '0.8rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '0.8rem' }}>
+          <button 
+            style={{ 
+              background: 'none', 
+              border: 'none', 
+              color: 'var(--accent-primary)', 
+              fontSize: '0.85rem', 
+              cursor: 'pointer', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justify: 'space-between',
+              width: '100%',
+              padding: 0
+            }}
+            onClick={() => setShowScheduleDropdown(!showScheduleDropdown)}
+          >
+            <span>📅 {showScheduleDropdown ? 'Ocultar Próximos Turnos' : '¿Cuándo me toca? (Ver Turnos Futuros)'}</span>
+            <span>{showScheduleDropdown ? '▲' : '▼'}</span>
+          </button>
+
+          {showScheduleDropdown && (
+            <div style={{ marginTop: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.4rem', maxHeight: '200px', overflowY: 'auto', paddingRight: '4px' }}>
+              {upcomingWeeks.map((item, idx) => (
+                <div 
+                  key={idx} 
+                  style={{ 
+                    display: 'flex', 
+                    justify: 'space-between', 
+                    alignItems: 'center', 
+                    padding: '0.4rem 0.6rem', 
+                    borderRadius: '6px',
+                    background: item.isMe ? 'rgba(99, 102, 241, 0.25)' : (item.isCurrent ? 'rgba(255,255,255,0.05)' : 'transparent'),
+                    border: item.isMe ? '1px solid var(--accent-primary)' : '1px solid transparent',
+                    fontSize: '0.8rem'
+                  }}
+                >
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)', marginRight: '6px' }}>{item.rangeStr}:</span>
+                    <strong style={{ color: item.isMe ? 'var(--accent-primary)' : 'inherit' }}>{item.assigneeName}</strong>
+                  </div>
+                  {item.isMe && (
+                    <span style={{ background: 'var(--accent-primary)', color: 'white', fontSize: '0.7rem', padding: '1px 6px', borderRadius: '4px', fontWeight: 'bold' }}>
+                      ¡Tu Turno!
+                    </span>
+                  )}
+                  {item.isCurrent && !item.isMe && (
+                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.7rem' }}>
+                      (Esta semana)
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
