@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { doc, onSnapshot, getDocs, collection, setDoc } from 'firebase/firestore';
 import { auth, db } from './firebase/config';
 import CalendarView from './components/CalendarView';
 import BookingModal from './components/BookingModal';
@@ -22,11 +22,28 @@ function App() {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        unsubProfile = onSnapshot(doc(db, 'users', currentUser.uid), (docSnap) => {
+        unsubProfile = onSnapshot(doc(db, 'users', currentUser.uid), async (docSnap) => {
           if (docSnap.exists()) {
             setUserProfile(docSnap.data());
           } else {
-            setUserProfile({ role: 'no socio' });
+            // Si el perfil no existe en Firestore, comprobar si la colección de perfiles está vacía
+            try {
+              const usersSnap = await getDocs(collection(db, 'users'));
+              const isFirst = usersSnap.empty;
+              const newRole = isFirst ? 'admin' : 'no socio';
+              const newProfile = {
+                uid: currentUser.uid,
+                email: currentUser.email,
+                displayName: currentUser.displayName || currentUser.email,
+                role: newRole,
+                createdAt: new Date()
+              };
+              setUserProfile(newProfile);
+              await setDoc(doc(db, 'users', currentUser.uid), newProfile);
+            } catch (err) {
+              console.error("Error al crear perfil inicial:", err);
+              setUserProfile({ role: 'no socio' });
+            }
           }
           setLoadingAuth(false);
         }, (error) => {
