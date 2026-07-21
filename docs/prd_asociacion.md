@@ -1,53 +1,38 @@
-# PRD: WebApp Asociación de Juegos
-
-Este documento (Product Requirements Document) consolida todos los requisitos y servirá como el **Plan de Ejecución Maestro** para el Orquestador (el agente principal) una vez que se inicie el desarrollo en el proyecto final.
+# PRD: WebApp Asociación de Juegos (Actualizado con Recuperación & Socios Manuales)
 
 ## 1. Visión General
-Crear una aplicación web orientada a móviles (mobile-first) para gestionar una asociación de juegos de mesa, rol y wargames. La aplicación permitirá reservar salas, evitar conflictos de uso, gestionar un sistema rotativo de limpieza y suscribirse a los calendarios.
+Aplicación web orientada a móviles (mobile-first) para gestionar la asociación de juegos WAR: reservas de estudios/salas, roles de miembros con permisos diferenciados, turnos rotativos de limpieza y exportación a calendarios.
 
-## 2. Pila Tecnológica (Tech Stack)
-- **Frontend:** React + Vite (o Vanilla JS), CSS puro (Modern Web Guidance).
-- **Backend / BaaS:** Firebase (Firestore, Auth, Cloud Functions).
+## 2. Roles y Permisos de Usuarios
+- **No socio**:
+  - Puede consultar el calendario general / participar en actividades.
+  - **NO** puede crear reservas.
+  - **NO** puede ver la tarjeta ni el calendario de limpieza.
+- **Semisocio**:
+  - Puede consultar el calendario y reservas.
+  - **NO** puede crear reservas / montar actividades.
+  - **NO** entra en el cuadrante de limpieza ni lo visualiza.
+- **Socio**:
+  - Puede crear reservas / montar actividades.
+  - Formar parte del cuadrante rotativo de limpieza y ver el horario de limpieza.
+  - Solicitar / aceptar cambios de semana de limpieza con otros socios.
+- **Admin**:
+  - Control total sobre usuarios (cambiar rol bidireccionalmente entre No socio, Semisocio, Socio y Admin).
+  - Gestionar estudios/salas de la asociación (crear, editar, renombrar, eliminar).
+  - Reorganizar / forzar saltos de turno en el cuadrante de limpieza y añadir socios no registrados a la lista.
+  - Eliminar cualquier reserva del calendario.
 
-## 3. Equipo Asignado (Agentes)
-- **Orquestador (Tú):** Supervisor del proyecto y coordinador.
-- **`DB_Architect`:** Especialista en Firebase, modelado de datos y lógica de backend (Cloud Functions).
-- **`UI_Engineer`:** Especialista en diseño visual, experiencia de usuario y componentes responsivos.
-- **`QA_Tester`:** Especialista en romper la app buscando bugs de concurrencia, UI y seguridad.
+## 3. Lógica del Turno de Limpieza & Socios Manuales
+- **Ciclo Semanal**: De lunes a domingo. Cada lunes cambia automáticamente al siguiente de la lista.
+- **Socios no registrados**: El Admin puede añadir nombres manualmente a la lista rotativa (para socios que no usen la aplicación web) de forma que el turno se muestre correctamente para todos.
+- **Cambio de Semana entre Socios**: Un socio registrado puede intercambiar su semana con otro socio.
+- **Gestión de Incidencias (Admin)**: Si alguien no limpia, el Admin recibe la alerta y puede reasignar o pasar el turno manualmente.
 
-> [!IMPORTANT]
-> **Regla Global:** Todos los agentes deben regirse por la máxima concisión (ahorro de contexto) y deben entregar al final de sus tareas un resumen "para dummies" de lo que han hecho.
+## 4. Autenticación & Recuperación de Contraseña
+- Formulario de Login/Registro con opción de **"¿Olvidaste tu contraseña?"** (vía `sendPasswordResetEmail` de Firebase).
+- Envío de email de restablecimiento directo al usuario.
 
-## 4. Fases de Ejecución (Orden de Tareas)
-
-### Fase 1: Inicialización (Orquestador)
-1. Iniciar proyecto frontend (ej. `npm create vite@latest`).
-2. Configurar Firebase e inicializar el SDK.
-
-### Fase 2: Cimientos de Datos (`DB_Architect`)
-1. Diseñar colecciones en Firestore (`users`, `rooms`, `reservations`, `cleaning_schedule`).
-2. Escribir y desplegar `firestore.rules` (evitar que usuarios borren reservas de otros).
-3. Diseñar lógica del algoritmo rotativo de turnos de limpieza.
-
-### Fase 3: Interfaz Visual (`UI_Engineer`)
-1. Construir vista central `CalendarView` (clara, visual e interactiva).
-2. Construir `BookingModal` (flujo rápido para elegir sala/juego).
-3. Construir `CleaningCard` (notificación visual destacada para el usuario al que le toca limpiar).
-> [!TIP]
-> Usar `chrome-devtools-plugin` frecuentemente en esta fase para auditar la visualización real.
-
-### Fase 4: Lógica Avanzada e Integración
-1. **`DB_Architect`**: Desarrollar endpoint (Cloud Function) para exportar un feed `.ics` dinámico.
-2. **`UI_Engineer`**: Crear el botón `CalendarSync` conectándolo a dicho endpoint.
-3. **Orquestador**: Asegurar que los componentes de UI leen y escriben correctamente en Firestore.
-
-### Fase 5: Pruebas Metodológicas de QA (`QA_Tester`)
-1. Aplicar Técnicas ISTQB: Partición de equivalencia, valores límite y tablas de decisión en toda la app.
-2. Evaluar Concurrencia y Seguridad (condiciones de carrera, aislamiento de roles y datos).
-3. Protocolo de reporte: Entregar informe formal de calidad al Orquestador (con matriz de casos probados, nivel de riesgo y resumen "para dummies"), INCLUSO si no se hallaron defectos.
-
-## 5. Criterios de Aceptación Finales
-- Un socio puede reservar una sala libre desde su móvil en menos de 3 clics.
-- Es imposible que dos personas reserven la misma sala a la misma hora.
-- El socio puede suscribirse al calendario en su móvil mediante un link dinámico.
-- Nadie puede marcar como "limpiado" el turno de otro para eludir sus responsabilidades.
+## 5. Gestión de Salas / Estudios (Admin)
+- Colección `rooms` en Firestore.
+- El Admin puede añadir nuevas salas o modificar las existentes.
+- El modal de reserva (`BookingModal`) cargará dinámicamente las salas activas de Firestore.
