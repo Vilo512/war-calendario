@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, doc, updateDoc, setDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { ROLES, ROLE_LABELS, normalizeRole, isCleaningMember } from '../utils/roleUtils';
+import { subscribeAllWeeks, resetWeekOverride } from '../services/cleaningSwapService';
 
 export default function AdminPanel({ isOpen, onClose, user }) {
   const [users, setUsers] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [cleaningMembers, setCleaningMembers] = useState([]);
+  const [weeksMap, setWeeksMap] = useState({});
   const [activeTab, setActiveTab] = useState('users'); // 'users', 'cleaning', 'rooms'
 
   const [selectedUserToAdd, setSelectedUserToAdd] = useState('');
@@ -45,6 +47,15 @@ export default function AdminPanel({ isOpen, onClose, user }) {
       } else {
         setCleaningMembers([]);
       }
+    });
+    return () => unsub();
+  }, [isOpen]);
+
+  // Escuchar permutas/excepciones de semanas
+  useEffect(() => {
+    if (!isOpen) return;
+    const unsub = subscribeAllWeeks((map) => {
+      setWeeksMap(map);
     });
     return () => unsub();
   }, [isOpen]);
@@ -292,6 +303,43 @@ export default function AdminPanel({ isOpen, onClose, user }) {
                     </div>
                   </div>
                 ))
+              )}
+            </div>
+
+            {/* Permutas Aceptadas e Intercambios */}
+            <div style={{ marginTop: '2rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1.2rem' }}>
+              <h4 style={{ fontSize: '1rem', marginBottom: '0.8rem', color: 'var(--text-secondary)' }}>Permutas Aceptadas y Excepciones Activas</h4>
+              
+              {Object.keys(weeksMap).filter(wId => wId !== 'config' && weeksMap[wId]?.isSwap).length === 0 ? (
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>No hay permutas o intercambios activos en este momento.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {Object.keys(weeksMap)
+                    .filter(wId => wId !== 'config' && weeksMap[wId]?.isSwap)
+                    .map(wId => {
+                      const data = weeksMap[wId];
+                      return (
+                        <div key={wId} className="booking-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <span style={{ fontWeight: 'bold', marginRight: '6px' }}>Semana {wId}:</span>
+                            <span>{data.assigneeName}</span>
+                            <span style={{ fontSize: '0.75rem', color: '#f59e0b', marginLeft: '6px' }}>(Original: {data.originalAssigneeName})</span>
+                          </div>
+                          <button 
+                            className="btn btn-secondary" 
+                            style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
+                            onClick={async () => {
+                              if (window.confirm(`¿Restablecer la semana ${wId} al socio original (${data.originalAssigneeName})?`)) {
+                                await resetWeekOverride(wId);
+                              }
+                            }}
+                          >
+                            Restablecer Original
+                          </button>
+                        </div>
+                      );
+                    })}
+                </div>
               )}
             </div>
           </div>

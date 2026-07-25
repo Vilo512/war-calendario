@@ -3,15 +3,28 @@ import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { formatWeekRange, getWeekId, calculateCurrentAssignee } from '../utils/cleaningUtils';
 import { isCleaningMember, isAdminRole } from '../utils/roleUtils';
+import { 
+  subscribeUserSwaps, 
+  subscribeAllWeeks, 
+  acceptSwapRequest, 
+  rejectSwapRequest, 
+  cancelSwapRequest 
+} from '../services/cleaningSwapService';
+import SwapModal from './SwapModal';
 
 export default function CleaningCard({ user, userRole }) {
   const [config, setConfig] = useState(null);
   const [weekDoc, setWeekDoc] = useState(null);
+  const [weeksMap, setWeeksMap] = useState({});
+  const [userSwaps, setUserSwaps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showScheduleDropdown, setShowScheduleDropdown] = useState(false);
+  const [isSwapModalOpen, setIsSwapModalOpen] = useState(false);
+  const [actionMsg, setActionMsg] = useState('');
 
   const weekId = getWeekId();
   const weekRange = formatWeekRange();
+  const userId = user?.uid || user?.id;
 
   // Escuchar configuración global de limpieza
   useEffect(() => {
@@ -38,6 +51,23 @@ export default function CleaningCard({ user, userRole }) {
     return () => unsub();
   }, [weekId]);
 
+  // Escuchar mapa completo de semanas (para overrides por permuta)
+  useEffect(() => {
+    const unsub = subscribeAllWeeks((map) => {
+      setWeeksMap(map);
+    });
+    return () => unsub();
+  }, []);
+
+  // Escuchar permutas del usuario actual
+  useEffect(() => {
+    if (!userId) return;
+    const unsub = subscribeUserSwaps(userId, (swaps) => {
+      setUserSwaps(swaps);
+    });
+    return () => unsub();
+  }, [userId]);
+
   // Solo socios y administradores ven la tarjeta de limpieza
   if (!isCleaningMember(userRole)) {
     return null;
@@ -54,20 +84,36 @@ export default function CleaningCard({ user, userRole }) {
   const members = config?.members || [];
   const startDate = config?.startDate?.toDate ? config.startDate.toDate() : (config?.startDate ? new Date(config.startDate) : new Date());
 
-  const currentInfo = calculateCurrentAssignee(members, startDate);
-  const assignee = currentInfo?.assignee;
-  const isCompleted = weekDoc?.completed || false;
+  // Determinar asignado efectivo de esta semana (considerando override por permuta)
+  const defaultInfo = calculateCurrentAssignee(members, startDate);
+  const currentWeekOverride = weeksMap[weekId];
+  
+  let assignee = null;
+  let isSwapTurn = false;
+  let originalAssigneeName = null;
 
+  if (currentWeekOverride && currentWeekOverride.assigneeName) {
+    assignee = {
+      id: currentWeekOverride.assigneeId,
+      name: currentWeekOverride.assigneeName
+    };
+    isSwapTurn = currentWeekOverride.isSwap || false;
+    originalAssigneeName = currentWeekOverride.originalAssigneeName;
+  } else if (defaultInfo) {
+    assignee = defaultInfo.assignee;
+  }
+
+  const isCompleted = weekDoc?.completed || false;
   const isAdmin = isAdminRole(userRole);
-  const isMyTurn = assignee && user && (assignee.id === user.uid || assignee.name === user.displayName || assignee.name === user.email);
+  const isMyTurn = assignee && user && (assignee.id === userId || assignee.name === user.displayName || assignee.name === user.email);
   const canComplete = isMyTurn || isAdmin;
 
-  // Calcular semanas restantes para el turno del usuario logueado
+  // Calcular semanas restantes para el turno del usuario logueado en la rotación por defecto
   let userWeeksLeft = null;
   if (user && members.length > 0) {
-    const myIndex = members.findIndex(m => m.id === user.uid || m.name === user.displayName || m.name === user.email);
-    if (myIndex !== -1 && currentInfo) {
-      const diff = myIndex - currentInfo.index;
+    const myIndex = members.findIndex(m => m.id === userId || m.name === user.displayName || m.name === user.email);
+    if (myIndex !== -1 && defaultInfo) {
+      const diff = myIndex - defaultInfo.index;
       userWeeksLeft = diff >= 0 ? diff : members.length + diff;
     }
   }
@@ -87,26 +133,77 @@ export default function CleaningCard({ user, userRole }) {
     }
   };
 
-  // Es domingo y no se ha completado?
+  // Acciones sobre permutas
+  const handleAcceptSwap = async (swap) => {
+    try {
+      await acceptSwapRequest(swap);
+      setActionMsg('¡Permuta aceptada con éxito!');
+      setTimeout(() => setActionMsg(''), 3000);
+    } catch (err) {
+      console.error("Error al aceptar permuta:", err);
+      alert('Error al aceptar permuta: ' + err.message);
+    }
+  };
+
+  const handleRejectSwap = async (swapId) => {
+    try {
+      await rejectSwapRequest(swapId);
+      setActionMsg('Permuta rechazada.');
+      setTimeout(() => setActionMsg(''), 3000);
+    } catch (err) {
+      console.error("Error al rechazar permuta:", err);
+    }
+  };
+
+  const handleCancelSwap = async (swapId) => {
+    try {
+      await cancelSwapRequest(swapId);
+      setActionMsg('Solicitud cancelada.');
+      setTimeout(() => setActionMsg(''), 3000);
+    } catch (err) {
+      console.error("Error al cancelar permuta:", err);
+    }
+  };
+
   const isSunday = new Date().getDay() === 0;
   const isUrgentWarning = isSunday && !isCompleted;
 
-  // Generar lista de próximos turnos para el desplegable
+  // Filtrar solicitudes de permuta pendientes
+  const pendingIncomingSwaps = userSwaps.filter(s => s.targetId === userId && s.status === 'PENDING');
+  const pendingOutgoingSwaps = userSwaps.filter(s => s.requesterId === userId && s.status === 'PENDING');
+
+  // Generar lista de próximos turnos para el desplegable (tomando en cuenta overrides)
   const upcomingWeeks = [];
-  if (members.length > 0 && currentInfo) {
+  if (members.length > 0 && defaultInfo) {
     const totalWeeksToShow = Math.max(members.length, 6);
     const now = new Date();
     for (let i = 0; i < totalWeeksToShow; i++) {
       const targetDate = new Date(now.getTime() + i * 7 * 24 * 60 * 60 * 1000);
-      const targetIndex = (currentInfo.index + i) % members.length;
-      const targetAssignee = members[targetIndex];
-      const isMe = user && targetAssignee && (targetAssignee.id === user.uid || targetAssignee.name === user.displayName || targetAssignee.name === user.email);
+      const targetWeekId = getWeekId(targetDate);
+      const rangeStr = formatWeekRange(targetDate);
+
+      let itemAssigneeName = 'Sin asignar';
+      let itemIsMe = false;
+      let itemIsSwap = false;
+
+      const override = weeksMap[targetWeekId];
+      if (override && override.assigneeName) {
+        itemAssigneeName = override.assigneeName;
+        itemIsMe = user && (override.assigneeId === userId || override.assigneeName === user.displayName || override.assigneeName === user.email);
+        itemIsSwap = override.isSwap || false;
+      } else {
+        const targetIndex = (defaultInfo.index + i) % members.length;
+        const targetAssignee = members[targetIndex];
+        itemAssigneeName = targetAssignee ? targetAssignee.name : 'Sin asignar';
+        itemIsMe = user && targetAssignee && (targetAssignee.id === userId || targetAssignee.name === user.displayName || targetAssignee.name === user.email);
+      }
 
       upcomingWeeks.push({
         weekNum: i,
-        rangeStr: formatWeekRange(targetDate),
-        assigneeName: targetAssignee ? targetAssignee.name : 'Sin asignar',
-        isMe: isMe,
+        rangeStr: rangeStr,
+        assigneeName: itemAssigneeName,
+        isMe: itemIsMe,
+        isSwap: itemIsSwap,
         isCurrent: i === 0
       });
     }
@@ -114,6 +211,7 @@ export default function CleaningCard({ user, userRole }) {
 
   return (
     <div className="glass-panel cleaning-card" style={{ borderLeft: isCompleted ? '4px solid var(--success)' : (isUrgentWarning ? '4px solid var(--danger)' : '4px solid var(--accent-primary)') }}>
+      {/* Cabecera */}
       <div className="cleaning-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
           <div className="cleaning-icon" style={{ background: isCompleted ? 'rgba(16, 185, 129, 0.2)' : undefined, color: isCompleted ? 'var(--success)' : undefined }}>
@@ -143,6 +241,54 @@ export default function CleaningCard({ user, userRole }) {
         </div>
       </div>
 
+      {actionMsg && (
+        <div style={{ marginTop: '0.8rem', background: 'rgba(99, 102, 241, 0.2)', color: 'var(--accent-primary)', padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.8rem', textAlign: 'center' }}>
+          {actionMsg}
+        </div>
+      )}
+
+      {/* Alertas de Permutas Entrantes */}
+      {pendingIncomingSwaps.length > 0 && (
+        <div style={{ marginTop: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          {pendingIncomingSwaps.map(swap => (
+            <div key={swap.id} style={{ background: 'rgba(245, 158, 11, 0.15)', border: '1px solid #f59e0b', borderRadius: '6px', padding: '0.8rem' }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#f59e0b', marginBottom: '0.3rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <span>🔄</span> Solicitud de Permuta Recibida
+              </div>
+              <p style={{ fontSize: '0.8rem', margin: '0 0 0.6rem 0', color: 'var(--text-primary)' }}>
+                <strong>{swap.requesterName}</strong> desea intercambiar su semana (<strong>{swap.requesterWeekRange}</strong>) por tu semana (<strong>{swap.targetWeekRange}</strong>).
+              </p>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button className="btn btn-success" style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem' }} onClick={() => handleAcceptSwap(swap)}>
+                  ✓ Aceptar Permuta
+                </button>
+                <button className="btn btn-secondary" style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem', background: 'rgba(239, 68, 68, 0.2)', color: 'var(--danger)' }} onClick={() => handleRejectSwap(swap.id)}>
+                  × Rechazar
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Alertas de Permutas Salientes */}
+      {pendingOutgoingSwaps.length > 0 && (
+        <div style={{ marginTop: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          {pendingOutgoingSwaps.map(swap => (
+            <div key={swap.id} style={{ background: 'rgba(99, 102, 241, 0.12)', border: '1px dashed var(--accent-primary)', borderRadius: '6px', padding: '0.6rem 0.8rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--accent-primary)', fontWeight: 'bold' }}>⏳ Solicitud Enviada a {swap.targetName}:</span>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Cambiar {swap.requesterWeekRange} por {swap.targetWeekRange}</div>
+              </div>
+              <button className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.7rem' }} onClick={() => handleCancelSwap(swap.id)}>
+                Cancelar
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Información principal de la semana */}
       <div style={{ marginTop: '1rem', marginBottom: '1rem' }}>
         {members.length === 0 ? (
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0 }}>
@@ -150,9 +296,17 @@ export default function CleaningCard({ user, userRole }) {
           </p>
         ) : (
           <>
-            <p style={{ fontSize: '0.95rem', margin: '0 0 0.5rem 0' }}>
-              Responsable esta semana: <strong style={{ color: 'var(--accent-primary)', fontSize: '1.05rem' }}>{assignee ? assignee.name : 'Sin asignar'}</strong>
-            </p>
+            <div style={{ fontSize: '0.95rem', margin: '0 0 0.5rem 0', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem' }}>
+              <span>Responsable esta semana:</span>
+              <strong style={{ color: 'var(--accent-primary)', fontSize: '1.05rem' }}>
+                {assignee ? assignee.name : 'Sin asignar'}
+              </strong>
+              {isSwapTurn && (
+                <span style={{ background: 'rgba(245, 158, 11, 0.2)', color: '#f59e0b', fontSize: '0.7rem', padding: '1px 6px', borderRadius: '4px', border: '1px solid #f59e0b' }}>
+                  🔄 Permuta (Original: {originalAssigneeName})
+                </span>
+              )}
+            </div>
             {isMyTurn && !isCompleted && (
               <p style={{ color: 'var(--accent-secondary)', fontSize: '0.85rem', fontWeight: 'bold', margin: '0 0 0.5rem 0' }}>
                 👉 ¡Es tu turno de limpiar el local esta semana!
@@ -160,13 +314,14 @@ export default function CleaningCard({ user, userRole }) {
             )}
             {userWeeksLeft !== null && !isMyTurn && (
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', margin: '0 0 0.5rem 0' }}>
-                {userWeeksLeft === 0 ? 'Te toca esta semana' : `Te tocará en ${userWeeksLeft} semana(s)`}
+                {userWeeksLeft === 0 ? 'Te toca esta semana' : `Te tocará en ~${userWeeksLeft} semana(s) por rotación`}
               </p>
             )}
           </>
         )}
       </div>
 
+      {/* Botones de acción */}
       {isCompleted ? (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
           <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
@@ -189,9 +344,20 @@ export default function CleaningCard({ user, userRole }) {
         )
       )}
 
-      {/* Botón desplegable para consultar calendario de turnos futuros */}
+      {/* Botón para abrir modal de permutas */}
+      {members.length > 1 && (
+        <button 
+          className="btn btn-secondary" 
+          style={{ width: '100%', marginBottom: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
+          onClick={() => setIsSwapModalOpen(true)}
+        >
+          <span>🔄</span> Solicitar Permuta de Semana
+        </button>
+      )}
+
+      {/* Desplegable de turnos futuros */}
       {members.length > 0 && (
-        <div style={{ marginTop: '0.8rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '0.8rem' }}>
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '0.8rem' }}>
           <button 
             style={{ 
               background: 'none', 
@@ -201,7 +367,7 @@ export default function CleaningCard({ user, userRole }) {
               cursor: 'pointer', 
               display: 'flex', 
               alignItems: 'center', 
-              justify: 'space-between',
+              justifyContent: 'space-between',
               width: '100%',
               padding: 0
             }}
@@ -218,7 +384,7 @@ export default function CleaningCard({ user, userRole }) {
                   key={idx} 
                   style={{ 
                     display: 'flex', 
-                    justify: 'space-between', 
+                    justifyContent: 'space-between', 
                     alignItems: 'center', 
                     padding: '0.4rem 0.6rem', 
                     borderRadius: '6px',
@@ -230,6 +396,9 @@ export default function CleaningCard({ user, userRole }) {
                   <div>
                     <span style={{ color: 'var(--text-secondary)', marginRight: '6px' }}>{item.rangeStr}:</span>
                     <strong style={{ color: item.isMe ? 'var(--accent-primary)' : 'inherit' }}>{item.assigneeName}</strong>
+                    {item.isSwap && (
+                      <span style={{ fontSize: '0.7rem', color: '#f59e0b', marginLeft: '4px' }}>(Permutado)</span>
+                    )}
                   </div>
                   {item.isMe && (
                     <span style={{ background: 'var(--accent-primary)', color: 'white', fontSize: '0.7rem', padding: '1px 6px', borderRadius: '4px', fontWeight: 'bold' }}>
@@ -247,6 +416,16 @@ export default function CleaningCard({ user, userRole }) {
           )}
         </div>
       )}
+
+      {/* Modal de Permutas */}
+      <SwapModal 
+        isOpen={isSwapModalOpen}
+        onClose={() => setIsSwapModalOpen(false)}
+        user={user}
+        members={members}
+        startDate={startDate}
+        weeksMap={weeksMap}
+      />
     </div>
   );
 }
