@@ -5,7 +5,6 @@ import { auth, db } from './firebase/config';
 import CalendarView from './components/CalendarView';
 import BookingModal from './components/BookingModal';
 import CleaningCard from './components/CleaningCard';
-import CalendarSync from './components/CalendarSync';
 import Login from './components/Login';
 import AdminPanel from './components/AdminPanel';
 import AnnouncementBanner from './components/AnnouncementBanner';
@@ -205,8 +204,6 @@ export default function App() {
           </div>
         </div>
       </header>
-
-      <CalendarSync />
 
       <AnnouncementBanner />
 

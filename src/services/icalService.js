@@ -3,67 +3,85 @@ import { db } from "../firebase/config";
 
 // Formatear fecha a YYYYMMDDTHHmmssZ
 const formatICalDate = (date) => {
-  if (!date) return '';
+  if (!date || isNaN(date.getTime())) return '';
   return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
 };
 
-export const generateICalContent = async () => {
-  try {
-    const querySnapshot = await getDocs(collection(db, "bookings"));
-    
-    let icalContent = "BEGIN:VCALENDAR\r\n";
-    icalContent += "VERSION:2.0\r\n";
-    icalContent += "PRODID:-//WAR Calendario//ES\r\n";
-    icalContent += "CALSCALE:GREGORIAN\r\n";
-    icalContent += "METHOD:PUBLISH\r\n";
-    icalContent += "X-WR-CALNAME:Reservas WAR\r\n";
+/**
+ * Genera contenido .ics a partir de una lista filtrada de reservas
+ */
+export const generateICalFromBookings = (bookingsList = [], title = "WAR Calendario") => {
+  let icalContent = "BEGIN:VCALENDAR\r\n";
+  icalContent += "VERSION:2.0\r\n";
+  icalContent += "PRODID:-//WAR Calendario//ES\r\n";
+  icalContent += "CALSCALE:GREGORIAN\r\n";
+  icalContent += "METHOD:PUBLISH\r\n";
+  icalContent += `X-WR-CALNAME:${title}\r\n`;
 
-    querySnapshot.forEach(doc => {
-      const data = doc.data();
-      let startTime = new Date();
-      if (data.date && data.time) {
-        const [year, month, day] = data.date.split('-');
-        const [hours, minutes] = data.time.split(':');
-        startTime = new Date(year, parseInt(month, 10) - 1, day, hours, minutes, 0, 0);
-      } else if (data.time) {
-        const [hours, minutes] = data.time.split(':');
-        startTime.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
-      } else if (data.startTime && data.startTime.toDate) {
-        startTime = data.startTime.toDate();
-      }
-      
-      const endTime = data.endTime && data.endTime.toDate ? data.endTime.toDate() : new Date(startTime.getTime() + 60 * 60 * 1000);
-      const title = data.name || data.title || "Reserva";
-      const room = data.room || "Sala Principal";
-      
-      icalContent += "BEGIN:VEVENT\r\n";
-      icalContent += `UID:${doc.id}@warcalendario.com\r\n`;
-      icalContent += `DTSTAMP:${formatICalDate(new Date())}\r\n`;
-      icalContent += `DTSTART:${formatICalDate(startTime)}\r\n`;
-      icalContent += `DTEND:${formatICalDate(endTime)}\r\n`;
-      icalContent += `SUMMARY:${title}\r\n`;
-      icalContent += `LOCATION:${room}\r\n`;
-      icalContent += "END:VEVENT\r\n";
-    });
+  bookingsList.forEach(data => {
+    let startTime = new Date();
+    if (data.date && data.startTimeStr) {
+      const [year, month, day] = data.date.split('-').map(Number);
+      const [hours, minutes] = data.startTimeStr.split(':').map(Number);
+      startTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
+    } else if (data.date && data.time) {
+      const [year, month, day] = data.date.split('-').map(Number);
+      const [hours, minutes] = data.time.split(':').map(Number);
+      startTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
+    } else if (data.date) {
+      const [year, month, day] = data.date.split('-').map(Number);
+      startTime = new Date(year, month - 1, day, 10, 0, 0, 0);
+    }
 
-    icalContent += "END:VCALENDAR\r\n";
-    
-    return icalContent;
-  } catch (error) {
-    console.error("Error al generar iCal:", error);
-    return null;
-  }
+    let endTime = new Date(startTime.getTime() + 2 * 60 * 60 * 1000);
+    if (data.date && data.endTimeStr) {
+      const [year, month, day] = data.date.split('-').map(Number);
+      const [hours, minutes] = data.endTimeStr.split(':').map(Number);
+      endTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
+    }
+
+    const eventTitle = data.name || data.title || "Reserva WAR";
+    const room = data.room || "Sala Principal";
+    const attendeesList = (data.attendees || []).map(a => a.name || a.email).join(', ') || 'N/A';
+
+    icalContent += "BEGIN:VEVENT\r\n";
+    icalContent += `UID:${data.id || Math.random().toString(36).substring(2)}@warcalendario.com\r\n`;
+    icalContent += `DTSTAMP:${formatICalDate(new Date())}\r\n`;
+    icalContent += `DTSTART:${formatICalDate(startTime)}\r\n`;
+    icalContent += `DTEND:${formatICalDate(endTime)}\r\n`;
+    icalContent += `SUMMARY:${eventTitle} (${room})\r\n`;
+    icalContent += `LOCATION:Asociación WAR - ${room}\r\n`;
+    icalContent += `DESCRIPTION:Reserva en ${room}. Asistentes: ${attendeesList}\r\n`;
+    icalContent += "END:VEVENT\r\n";
+  });
+
+  icalContent += "END:VCALENDAR\r\n";
+  return icalContent;
 };
 
-export const downloadICalFeed = async () => {
-  const content = await generateICalContent();
+/**
+ * Descarga archivo .ics para iCal, iPhone, Outlook y Google Calendar
+ */
+export const downloadICalFromBookings = (bookingsList = [], filename = "reservas_war.ics") => {
+  const content = generateICalFromBookings(bookingsList);
   if (!content) return;
 
   const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
   const link = document.createElement('a');
   link.href = window.URL.createObjectURL(blob);
-  link.setAttribute('download', 'reservas.ics');
+  link.setAttribute('download', filename);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+};
+
+export const downloadICalFeed = async () => {
+  try {
+    const querySnapshot = await getDocs(collection(db, "bookings"));
+    const list = [];
+    querySnapshot.forEach(docSnap => list.push({ id: docSnap.id, ...docSnap.data() }));
+    downloadICalFromBookings(list, 'reservas_totales_war.ics');
+  } catch (error) {
+    console.error("Error al descargar iCal feed:", error);
+  }
 };

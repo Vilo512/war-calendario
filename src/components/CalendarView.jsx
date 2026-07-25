@@ -4,6 +4,7 @@ import { db } from '../firebase/config';
 import { isAdminRole } from '../utils/roleUtils';
 import AttendeesModal from './AttendeesModal';
 import RoomPickerModal from './RoomPickerModal';
+import SyncModal from './SyncModal';
 
 export default function CalendarView({ user, userRole, onOpenBooking }) {
   const [bookings, setBookings] = useState([]);
@@ -15,6 +16,7 @@ export default function CalendarView({ user, userRole, onOpenBooking }) {
   const [selectedRoomFilter, setSelectedRoomFilter] = useState('ALL'); // 'ALL' or specific room name
   const [selectedBookingForAttendees, setSelectedBookingForAttendees] = useState(null);
   const [isRoomPickerOpen, setIsRoomPickerOpen] = useState(false);
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
 
   const defaultRooms = ['Estudio A', 'Estudio B', 'Sala Conferencias'];
 
@@ -436,6 +438,29 @@ export default function CalendarView({ user, userRole, onOpenBooking }) {
     );
   };
 
+  const getVisibleBookings = () => {
+    let list = bookings;
+    if (viewMode === 'month') {
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      list = list.filter(b => {
+        if (!b.date) return false;
+        const [y, m] = b.date.split('-').map(Number);
+        return y === year && (m - 1) === month;
+      });
+    } else {
+      const weekDays = getWeekDays();
+      const dateStrs = weekDays.map(formatDateString);
+      list = list.filter(b => dateStrs.includes(b.date));
+    }
+
+    if (selectedRoomFilter !== 'ALL') {
+      list = list.filter(b => b.room === selectedRoomFilter);
+    }
+
+    return list;
+  };
+
   const headerText = viewMode === 'month' 
     ? `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`
     : `Semana del ${getWeekDays()[0].getDate()} de ${monthNames[getWeekDays()[0].getMonth()]}`;
@@ -479,6 +504,27 @@ export default function CalendarView({ user, userRole, onOpenBooking }) {
             >Semana</button>
           </div>
 
+          {/* Botón compacto de Sincronización con Calendarios */}
+          <button 
+            className="btn btn-secondary"
+            style={{ 
+              fontSize: '0.82rem', 
+              padding: '0.4rem 0.75rem', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '0.4rem'
+            }}
+            onClick={() => setIsSyncModalOpen(true)}
+            title="Sincronizar reservas visibles con tu calendario"
+          >
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <span>Sincronizar</span>
+          </button>
+
           <div className="nav-arrows">
             <button className="nav-btn" onClick={prevPeriod}>&lt;</button>
             <button className="nav-btn" onClick={nextPeriod}>&gt;</button>
@@ -511,6 +557,15 @@ export default function CalendarView({ user, userRole, onOpenBooking }) {
         rooms={availableRooms}
         selectedRoom={selectedRoomFilter}
         onSelectRoom={(r) => setSelectedRoomFilter(r)}
+      />
+
+      {/* Modal de Sincronización con Calendarios (iPhone, Google, Outlook, iCal) */}
+      <SyncModal
+        isOpen={isSyncModalOpen}
+        onClose={() => setIsSyncModalOpen(false)}
+        visibleBookings={getVisibleBookings()}
+        selectedRoomFilter={selectedRoomFilter}
+        viewMode={viewMode}
       />
     </div>
   );
