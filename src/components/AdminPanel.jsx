@@ -257,8 +257,25 @@ export default function AdminPanel({ isOpen, onClose, user }) {
     }}>
       <div className="glass-panel" style={{ width: '100%', maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto', padding: '2rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-          <h2 className="title" style={{ margin: 0 }}>Panel de Administración</h2>
-          <button className="btn btn-secondary" onClick={onClose}>Cerrar ×</button>
+          <h2 className="title" style={{ margin: 0, fontSize: '1.5rem' }}>Panel de Administración</h2>
+          <button 
+            className="btn btn-secondary" 
+            style={{ 
+              padding: '0.2rem 0.6rem', 
+              fontSize: '1rem', 
+              lineHeight: 1, 
+              minWidth: '32px', 
+              height: '32px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              borderRadius: '4px' 
+            }} 
+            onClick={onClose}
+            title="Cerrar"
+          >
+            ✕
+          </button>
         </div>
 
         {/* Pestanas */}
