@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { doc, runTransaction, collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase/config';
+import { canBook as canBookUser, getRoleLabel } from '../utils/roleUtils';
 
 export default function BookingModal({ isOpen, onClose, user, userRole }) {
   const [formData, setFormData] = useState({ name: '', room: '', date: '', time: '', maxAttendees: '' });
@@ -27,13 +28,13 @@ export default function BookingModal({ isOpen, onClose, user, userRole }) {
 
   if (!isOpen) return null;
 
-  const canBook = userRole === 'socio' || userRole === 'admin';
+  const userCanBook = canBookUser(userRole);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
 
-    if (!canBook) {
+    if (!userCanBook) {
       setErrorMsg('Debes tener el estatus de Socio o Administrador para crear reservas.');
       return;
     }
@@ -76,10 +77,10 @@ export default function BookingModal({ isOpen, onClose, user, userRole }) {
       <div className="modal-content" onClick={e => e.stopPropagation()}>
         <h2 className="title" style={{fontSize: '1.5rem'}}>Nueva Reserva</h2>
         
-        {!canBook ? (
+        {!userCanBook ? (
           <div style={{ textAlign: 'center', padding: '1rem' }}>
             <p style={{ color: 'var(--danger)', marginBottom: '1.5rem' }}>
-              Tu estatus actual es <strong>"{userRole || 'No socio'}"</strong>. Solamente los miembros con estatus de <strong>Socio</strong> o <strong>Administrador</strong> pueden realizar reservas de estudios.
+              Tu estatus actual es <strong>"{getRoleLabel(userRole)}"</strong>. Solamente los miembros con estatus de <strong>Socio</strong> o <strong>Administrador</strong> pueden realizar reservas de estudios.
             </p>
             <button className="btn btn-secondary" onClick={onClose} style={{ width: '100%' }}>Entendido</button>
           </div>

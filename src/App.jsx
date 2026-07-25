@@ -8,29 +8,32 @@ import CleaningCard from './components/CleaningCard';
 import CalendarSync from './components/CalendarSync';
 import Login from './components/Login';
 import AdminPanel from './components/AdminPanel';
+import { getRoleLabel, isAdminRole, ROLES } from './utils/roleUtils';
 import './index.css';
 
-function App() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isAdminOpen, setIsAdminOpen] = useState(false);
+export default function App() {
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
 
   useEffect(() => {
     let unsubProfile = null;
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        unsubProfile = onSnapshot(doc(db, 'users', currentUser.uid), async (docSnap) => {
+        // Escuchar perfil del usuario en Firestore
+        const userDocRef = doc(db, 'users', currentUser.uid);
+        unsubProfile = onSnapshot(userDocRef, async (docSnap) => {
           if (docSnap.exists()) {
             setUserProfile(docSnap.data());
           } else {
-            // Si el perfil no existe en Firestore, comprobar si la colección de perfiles está vacía
+            // Si es el primer usuario en la BD, asignar admin automaticamente
             try {
               const usersSnap = await getDocs(collection(db, 'users'));
               const isFirst = usersSnap.empty;
-              const newRole = isFirst ? 'admin' : 'no socio';
+              const newRole = isFirst ? ROLES.ADMIN : ROLES.NO_SOCIO;
               const newProfile = {
                 uid: currentUser.uid,
                 email: currentUser.email,
@@ -42,13 +45,13 @@ function App() {
               await setDoc(doc(db, 'users', currentUser.uid), newProfile);
             } catch (err) {
               console.error("Error al crear perfil inicial:", err);
-              setUserProfile({ role: 'no socio' });
+              setUserProfile({ role: ROLES.NO_SOCIO });
             }
           }
           setLoadingAuth(false);
         }, (error) => {
           console.error("Error leyendo perfil de usuario:", error);
-          setUserProfile({ role: 'no socio' });
+          setUserProfile({ role: ROLES.NO_SOCIO });
           setLoadingAuth(false);
         });
       } else {
@@ -58,26 +61,31 @@ function App() {
     });
 
     return () => {
-      unsubscribe();
+      unsubscribeAuth();
       if (unsubProfile) unsubProfile();
     };
   }, []);
 
   if (loadingAuth) {
-    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: 'white' }}>Cargando sesión...</div>;
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
+        Cargando WAR Calendario...
+      </div>
+    );
   }
 
   if (!user) {
     return <Login />;
   }
 
-  const userRole = userProfile ? userProfile.role : 'no socio';
-  const isAdmin = userRole === 'admin';
+  const userRole = userProfile ? userProfile.role : ROLES.NO_SOCIO;
+  const isAdmin = isAdminRole(userRole);
+  const roleLabel = getRoleLabel(userRole);
 
   return (
     <div className="app-container">
-      <header className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+      <header className="header">
+        <div className="header-brand" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <div style={{ 
             width: '48px', 
             height: '48px', 
@@ -86,10 +94,9 @@ function App() {
             color: '#09090b', 
             display: 'flex', 
             alignItems: 'center', 
-            justify: 'center', 
+            justifyContent: 'center', 
             boxShadow: '0 0 24px rgba(255, 255, 255, 0.2)' 
           }}>
-            {/* Stencil Raven Shield Logo */}
             <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 2L4 7v10l8 5 8-5V7l-8-5z" fill="currentColor" fillOpacity="0.12" />
               <path d="M12 22V12" />
@@ -105,8 +112,9 @@ function App() {
             </p>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column' }}>
+
+        <div className="header-user-section">
+          <div className="header-user-info" style={{ textAlign: 'right', display: 'flex', flexDirection: 'column' }}>
             <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
               Hola, <strong style={{ color: '#ffffff' }}>{user.displayName || user.email}</strong>
               <span style={{ 
@@ -118,35 +126,37 @@ function App() {
                 fontFamily: "var(--font-stencil)",
                 letterSpacing: '0.05em',
                 textTransform: 'uppercase',
-                border: isAdmin ? '1px solid #ffffff' : (userRole === 'socio' ? '1px solid #10b981' : '1px solid #52525b'),
-                background: isAdmin ? '#ffffff' : (userRole === 'socio' ? '#064e3b' : '#18181b'), 
-                color: isAdmin ? '#000000' : (userRole === 'socio' ? '#34d399' : '#e4e4e7'),
+                border: isAdmin ? '1px solid #ffffff' : (roleLabel === 'Socio' ? '1px solid #10b981' : '1px solid #52525b'),
+                background: isAdmin ? '#ffffff' : (roleLabel === 'Socio' ? '#064e3b' : '#18181b'), 
+                color: isAdmin ? '#000000' : (roleLabel === 'Socio' ? '#34d399' : '#e4e4e7'),
                 boxShadow: '0 2px 6px rgba(0,0,0,0.8)'
               }}>
-                {userRole}
+                {roleLabel}
               </span>
             </span>
             <button 
               onClick={() => signOut(auth)} 
-              style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer', padding: 0, textAlign: 'right', fontSize: '0.8rem' }}
+              style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: 0, textAlign: 'inherit', fontSize: '0.8rem', marginTop: '2px' }}
             >
               Cerrar sesión
             </button>
           </div>
 
-          {isAdmin && (
-            <button className="btn btn-secondary" onClick={() => setIsAdminOpen(true)} style={{ borderColor: 'var(--accent-primary)' }}>
-              ⚙️ Admin Panel
-            </button>
-          )}
+          <div className="header-actions">
+            {isAdmin && (
+              <button className="btn btn-secondary" onClick={() => setIsAdminOpen(true)} style={{ borderColor: 'var(--accent-primary)' }}>
+                ⚙️ Admin Panel
+              </button>
+            )}
 
-          <button className="btn" onClick={() => setIsModalOpen(true)}>
-            <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '6px'}}>
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            <span>Nueva Reserva</span>
-          </button>
+            <button className="btn" onClick={() => setIsModalOpen(true)}>
+              <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '6px'}}>
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              <span>Nueva Reserva</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -173,9 +183,7 @@ function App() {
 
       <BookingModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} user={user} userRole={userRole} />
       
-      {isAdminOpen && <AdminPanel onClose={() => setIsAdminOpen(false)} />}
+      {isAdminOpen && <AdminPanel isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} user={user} />}
     </div>
   );
 }
-
-export default App;

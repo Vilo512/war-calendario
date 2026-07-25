@@ -1,39 +1,44 @@
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, doc, updateDoc, setDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
+import { ROLES, ROLE_LABELS, normalizeRole, isCleaningMember } from '../utils/roleUtils';
 
-export default function AdminPanel({ onClose }) {
-  const [activeTab, setActiveTab] = useState('users'); // 'users', 'cleaning', 'rooms'
+export default function AdminPanel({ isOpen, onClose, user }) {
   const [users, setUsers] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [cleaningMembers, setCleaningMembers] = useState([]);
-  const [manualMemberName, setManualMemberName] = useState('');
+  const [activeTab, setActiveTab] = useState('users'); // 'users', 'cleaning', 'rooms'
+
   const [selectedUserToAdd, setSelectedUserToAdd] = useState('');
+  const [manualMemberName, setManualMemberName] = useState('');
   const [newRoomName, setNewRoomName] = useState('');
   const [msg, setMsg] = useState('');
 
   // Escuchar usuarios
   useEffect(() => {
+    if (!isOpen) return;
     const unsub = onSnapshot(collection(db, 'users'), (snapshot) => {
-      const uList = [];
-      snapshot.forEach((d) => uList.push({ id: d.id, ...d.data() }));
-      setUsers(uList);
+      const list = [];
+      snapshot.forEach(doc => list.push({ id: doc.id, ...doc.data() }));
+      setUsers(list);
     });
     return () => unsub();
-  }, []);
+  }, [isOpen]);
 
   // Escuchar salas
   useEffect(() => {
+    if (!isOpen) return;
     const unsub = onSnapshot(collection(db, 'rooms'), (snapshot) => {
-      const rList = [];
-      snapshot.forEach((d) => rList.push({ id: d.id, ...d.data() }));
-      setRooms(rList);
+      const list = [];
+      snapshot.forEach(doc => list.push({ id: doc.id, ...doc.data() }));
+      setRooms(list);
     });
     return () => unsub();
-  }, []);
+  }, [isOpen]);
 
-  // Escuchar lista de limpieza
+  // Escuchar cuadrante de limpieza
   useEffect(() => {
+    if (!isOpen) return;
     const unsub = onSnapshot(doc(db, 'cleaning_schedule', 'config'), (docSnap) => {
       if (docSnap.exists()) {
         setCleaningMembers(docSnap.data().members || []);
@@ -42,58 +47,52 @@ export default function AdminPanel({ onClose }) {
       }
     });
     return () => unsub();
-  }, []);
+  }, [isOpen]);
 
-  // Cambiar rol de usuario
-  const handleRoleChange = async (userId, newRole) => {
+  if (!isOpen) return null;
+
+  // Cambiar rol de un usuario
+  const handleRoleChange = async (targetUserId, newRoleValue) => {
     try {
-      await updateDoc(doc(db, 'users', userId), { role: newRole });
-      setMsg('Rol actualizado correctamente.');
+      const numericRole = typeof newRoleValue === 'number' ? newRoleValue : parseInt(newRoleValue, 10);
+      await updateDoc(doc(db, 'users', targetUserId), { role: numericRole });
+      setMsg('Estatus de usuario actualizado.');
       setTimeout(() => setMsg(''), 3000);
     } catch (err) {
       console.error("Error al actualizar rol:", err);
-      setMsg('Error actualizando rol: ' + err.message);
+      setMsg('Error al actualizar estatus: ' + err.message);
     }
   };
 
-  // Guardar lista de limpieza
-  const saveCleaningMembers = async (newList) => {
+  // Guardar lista completa del cuadrante
+  const saveCleaningMembers = async (membersList) => {
     try {
-      setCleaningMembers(newList);
-      const configRef = doc(db, 'cleaning_schedule', 'config');
-      const docSnap = await getDoc(configRef);
-      if (!docSnap.exists()) {
-        await setDoc(configRef, {
-          members: newList,
-          startDate: new Date()
-        });
-      } else {
-        await updateDoc(configRef, { members: newList });
-      }
-      setMsg('Cuadrante de limpieza guardado.');
+      await setDoc(doc(db, 'cleaning_schedule', 'config'), {
+        members: membersList,
+        startDate: new Date()
+      }, { merge: true });
+      setMsg('Cuadrante de limpieza actualizado.');
       setTimeout(() => setMsg(''), 3000);
     } catch (err) {
-      console.error("Error guardando cuadrante:", err);
-      setMsg('Error guardando limpieza: ' + err.message);
+      console.error("Error al guardar cuadrante:", err);
+      setMsg('Error al guardar cuadrante: ' + err.message);
     }
   };
 
-  // Añadir socio registrado a la lista de limpieza
+  // Añadir socio registrado a la lista
   const handleAddRegisteredToCleaning = () => {
     if (!selectedUserToAdd) return;
     const targetUser = users.find(u => u.id === selectedUserToAdd);
     if (!targetUser) return;
-    
-    // Evitar duplicados por UID
-    if (cleaningMembers.some(m => m.uid === targetUser.uid)) {
-      setMsg('Este socio ya está en la lista de limpieza.');
-      setTimeout(() => setMsg(''), 3000);
+
+    if (cleaningMembers.some(m => m.id === targetUser.id)) {
+      alert('Este usuario ya está en el cuadrante de limpieza.');
       return;
     }
 
     const newItem = {
-      id: targetUser.uid,
-      uid: targetUser.uid,
+      id: targetUser.id,
+      uid: targetUser.uid || targetUser.id,
       name: targetUser.displayName || targetUser.email,
       isManual: false
     };
@@ -145,29 +144,27 @@ export default function AdminPanel({ onClose }) {
         createdAt: new Date()
       });
       setNewRoomName('');
-      setMsg('Sala añadida correctamente.');
+      setMsg('Nueva sala creada.');
       setTimeout(() => setMsg(''), 3000);
     } catch (err) {
-      console.error("Error al añadir sala:", err);
       setMsg('Error creando sala: ' + err.message);
     }
   };
 
-  // Borrar sala
+  // Eliminar sala
   const handleDeleteRoom = async (roomId) => {
-    if (window.confirm('¿Seguro que deseas eliminar esta sala?')) {
+    if (window.confirm('¿Eliminar esta sala?')) {
       try {
         await deleteDoc(doc(db, 'rooms', roomId));
         setMsg('Sala eliminada.');
         setTimeout(() => setMsg(''), 3000);
       } catch (err) {
-        console.error("Error borrando sala:", err);
         setMsg('Error eliminando sala: ' + err.message);
       }
     }
   };
 
-  const sociosAndAdmins = users.filter(u => u.role === 'socio' || u.role === 'admin');
+  const sociosAndAdmins = users.filter(u => isCleaningMember(u.role));
 
   return (
     <div style={{
@@ -175,7 +172,7 @@ export default function AdminPanel({ onClose }) {
       top: 0, left: 0, right: 0, bottom: 0,
       background: 'rgba(10, 10, 12, 0.94)',
       display: 'flex',
-      justify: 'center',
+      justifyContent: 'center',
       alignItems: 'center',
       zIndex: 1000,
       padding: '1rem'
@@ -187,7 +184,7 @@ export default function AdminPanel({ onClose }) {
         </div>
 
         {/* Pestanas */}
-        <div className="view-toggles" style={{ marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+        <div className="view-toggles" style={{ marginBottom: '1.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
           <button 
             className={`toggle-btn ${activeTab === 'users' ? 'active' : ''}`}
             onClick={() => setActiveTab('users')}
@@ -226,13 +223,13 @@ export default function AdminPanel({ onClose }) {
                     <select 
                       className="form-input" 
                       style={{ padding: '0.4rem', width: 'auto' }}
-                      value={u.role || 'no socio'}
-                      onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                      value={normalizeRole(u.role)}
+                      onChange={(e) => handleRoleChange(u.id, parseInt(e.target.value, 10))}
                     >
-                      <option value="no socio">No Socio</option>
-                      <option value="semisocio">Semisocio</option>
-                      <option value="socio">Socio</option>
-                      <option value="admin">Administrador</option>
+                      <option value={ROLES.NO_SOCIO}>{ROLE_LABELS[ROLES.NO_SOCIO]}</option>
+                      <option value={ROLES.SEMISOCIO}>{ROLE_LABELS[ROLES.SEMISOCIO]}</option>
+                      <option value={ROLES.SOCIO}>{ROLE_LABELS[ROLES.SOCIO]}</option>
+                      <option value={ROLES.ADMIN}>{ROLE_LABELS[ROLES.ADMIN]}</option>
                     </select>
                   </div>
                 </div>

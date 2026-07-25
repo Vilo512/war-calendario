@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { formatWeekRange, getWeekId, calculateCurrentAssignee } from '../utils/cleaningUtils';
+import { isCleaningMember, isAdminRole } from '../utils/roleUtils';
 
 export default function CleaningCard({ user, userRole }) {
   const [config, setConfig] = useState(null);
@@ -38,7 +39,7 @@ export default function CleaningCard({ user, userRole }) {
   }, [weekId]);
 
   // Solo socios y administradores ven la tarjeta de limpieza
-  if (userRole !== 'socio' && userRole !== 'admin') {
+  if (!isCleaningMember(userRole)) {
     return null;
   }
 
@@ -57,7 +58,7 @@ export default function CleaningCard({ user, userRole }) {
   const assignee = currentInfo?.assignee;
   const isCompleted = weekDoc?.completed || false;
 
-  const isAdmin = userRole === 'admin';
+  const isAdmin = isAdminRole(userRole);
   const isMyTurn = assignee && user && (assignee.id === user.uid || assignee.name === user.displayName || assignee.name === user.email);
   const canComplete = isMyTurn || isAdmin;
 
