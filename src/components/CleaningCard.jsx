@@ -325,33 +325,46 @@ export default function CleaningCard({ user, userRole }) {
 
       {/* Botones de acción */}
       {isCompleted ? (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
           <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
             Limpiado por: {weekDoc?.completedBy || 'Socio'}
           </span>
           {canComplete && (
-            <button className="btn btn-secondary" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }} onClick={() => handleToggleComplete(false)}>
+            <button className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }} onClick={() => handleToggleComplete(false)}>
               Desmarcar
             </button>
           )}
         </div>
       ) : (
         canComplete && members.length > 0 && (
-          <button className="btn btn-success" style={{ width: '100%', marginBottom: '0.5rem' }} onClick={() => handleToggleComplete(true)}>
-            <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+          <button 
+            className="btn" 
+            style={{ 
+              width: '100%', 
+              marginBottom: '0.6rem', 
+              padding: '0.45rem 0.8rem', 
+              fontSize: '0.82rem',
+              background: 'rgba(6, 78, 59, 0.6)',
+              color: '#34d399',
+              border: '1px solid #059669',
+              boxShadow: 'none'
+            }} 
+            onClick={() => handleToggleComplete(true)}
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
               <polyline points="20 6 9 17 4 12"></polyline>
             </svg>
-            Marcar Turno Como Completado
+            Turno completado
           </button>
         )
       )}
 
-      {/* Botones de acción secundaria (Cambio / Incidencia) */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.8rem', flexWrap: 'wrap' }}>
+      {/* Botones de acción secundaria (Cambio / Incidencia) ajustados y más compactos */}
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.8rem', width: '100%' }}>
         {members.length > 1 && (
           <button 
             className="btn btn-secondary" 
-            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
+            style={{ flex: 1, padding: '0.35rem 0.4rem', fontSize: '0.78rem', whiteSpace: 'nowrap', justifyContent: 'center' }}
             onClick={() => setIsSwapModalOpen(true)}
           >
             Cambiar Turno
@@ -359,7 +372,7 @@ export default function CleaningCard({ user, userRole }) {
         )}
         <button 
           className="btn btn-secondary" 
-          style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontSize: '0.8rem', background: 'rgba(239, 68, 68, 0.15)', color: 'var(--danger)', border: '1px solid rgba(239, 68, 68, 0.3)', whiteSpace: 'nowrap' }}
+          style={{ flex: 1, padding: '0.35rem 0.4rem', fontSize: '0.78rem', background: 'rgba(239, 68, 68, 0.12)', color: 'var(--danger)', border: '1px solid rgba(239, 68, 68, 0.3)', whiteSpace: 'nowrap', justifyContent: 'center' }}
           onClick={() => setIsIncidentModalOpen(true)}
         >
           Reportar Incidencia
