@@ -108,15 +108,20 @@ function App() {
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column' }}>
             <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-              Hola, {user.displayName || user.email}
+              Hola, <strong style={{ color: '#ffffff' }}>{user.displayName || user.email}</strong>
               <span style={{ 
-                marginLeft: '6px', 
+                marginLeft: '8px', 
                 fontSize: '0.75rem', 
-                padding: '2px 6px', 
+                padding: '3px 8px', 
                 borderRadius: '4px', 
-                background: isAdmin ? 'var(--accent-primary)' : 'rgba(255,255,255,0.1)', 
-                color: 'white',
-                textTransform: 'capitalize'
+                fontWeight: '800',
+                fontFamily: "var(--font-stencil)",
+                letterSpacing: '0.05em',
+                textTransform: 'uppercase',
+                border: isAdmin ? '1px solid #ffffff' : (userRole === 'socio' ? '1px solid #10b981' : '1px solid #52525b'),
+                background: isAdmin ? '#ffffff' : (userRole === 'socio' ? '#064e3b' : '#18181b'), 
+                color: isAdmin ? '#000000' : (userRole === 'socio' ? '#34d399' : '#e4e4e7'),
+                boxShadow: '0 2px 6px rgba(0,0,0,0.8)'
               }}>
                 {userRole}
               </span>

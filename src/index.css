@@ -1,26 +1,27 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Saira+Stencil+One&family=Allerta+Stencil&family=Stardos+Stencil:wght@400;700&family=Outfit:wght@400;500;600;700;800&display=swap');
 
 :root {
-  --bg-dark: #09090b;
-  --bg-panel: rgba(20, 20, 25, 0.85);
-  --text-primary: #f4f4f5;
-  --text-secondary: #a1a1aa;
+  --bg-dark: #0a0a0c;
+  --bg-panel: #121215;
+  --text-primary: #ffffff;
+  --text-secondary: #d4d4d8;
   --accent-primary: #ffffff;
   --accent-hover: #e4e4e7;
-  --accent-secondary: #71717a;
+  --accent-secondary: #a1a1aa;
   --success: #10b981;
   --danger: #f43f5e;
-  --border-light: rgba(255, 255, 255, 0.12);
-  --border-strong: rgba(255, 255, 255, 0.25);
-  --glass-shadow: 0 16px 48px rgba(0, 0, 0, 0.8);
-  --glass-blur: blur(16px);
+  --border-light: #27272a;
+  --border-strong: #3f3f46;
+  --panel-shadow: 0 10px 30px rgba(0, 0, 0, 0.95);
+  --font-stencil: 'Saira Stencil One', 'Allerta Stencil', 'Stardos Stencil', cursive, sans-serif;
+  --font-body: 'Outfit', sans-serif;
 }
 
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-body);
 }
 
 body {
@@ -29,9 +30,8 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   background-image: 
-    radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.06), transparent 45%),
-    radial-gradient(circle at 100% 100%, rgba(39, 39, 42, 0.35), transparent 50%),
-    radial-gradient(circle at 0% 100%, rgba(24, 24, 27, 0.5), transparent 50%);
+    radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.04), transparent 45%),
+    radial-gradient(circle at 100% 100%, rgba(39, 39, 42, 0.3), transparent 50%);
 }
 
 #root {
@@ -40,49 +40,62 @@ body {
   padding: 1.5rem;
 }
 
-/* Glassmorphism Classes */
+/* Tactical Solid Panel (No Glassmorphism) */
 .glass-panel {
   background: var(--bg-panel);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--border-light);
-  border-radius: 16px;
-  box-shadow: var(--glass-shadow);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  box-shadow: var(--panel-shadow);
   padding: 1.5rem;
+  position: relative;
+}
+
+.glass-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, #ffffff 0%, #3f3f46 100%);
 }
 
 .title {
-  font-family: 'Space Grotesk', 'Outfit', sans-serif;
-  font-size: 1.75rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  background: linear-gradient(135deg, #ffffff 0%, #a1a1aa 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  font-family: var(--font-stencil);
+  font-size: 1.85rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #ffffff;
+  background: none;
+  -webkit-text-fill-color: initial;
   margin-bottom: 1rem;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
 }
 
 .btn {
   background: #ffffff;
-  color: #09090b;
-  border: 1px solid #ffffff;
-  padding: 0.75rem 1.5rem;
-  border-radius: 9999px;
-  font-weight: 700;
+  color: #000000;
+  border: 2px solid #ffffff;
+  padding: 0.7rem 1.4rem;
+  border-radius: 4px;
+  font-family: var(--font-body);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  box-shadow: 0 4px 14px rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 .btn:hover {
   background: #e4e4e7;
   border-color: #e4e4e7;
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(255, 255, 255, 0.22);
+  box-shadow: 0 6px 16px rgba(255, 255, 255, 0.2);
 }
 
 .btn:active {
@@ -90,16 +103,16 @@ body {
 }
 
 .btn-secondary {
-  background: rgba(255, 255, 255, 0.05);
+  background: #18181b;
   color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid #3f3f46;
   box-shadow: none;
 }
 
 .btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.35);
-  box-shadow: 0 4px 14px rgba(255, 255, 255, 0.08);
+  background: #27272a;
+  border-color: #ffffff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
 }
 
 .btn-success {
@@ -110,7 +123,6 @@ body {
 .btn-success:hover {
   background: #059669;
   border-color: #059669;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
 /* Layout */
@@ -205,13 +217,12 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
+  background: rgba(10, 10, 12, 0.92);
   display: flex;
   align-items: flex-end;
   justify-content: center;
   z-index: 100;
-  animation: fadeIn 0.3s ease;
+  animation: fadeIn 0.2s ease;
 }
 
 @media (min-width: 768px) {
@@ -223,20 +234,12 @@ body {
 .modal-content {
   width: 100%;
   max-width: 500px;
-  background: var(--bg-dark);
-  border-top-left-radius: 24px;
-  border-top-right-radius: 24px;
+  background: #141417;
+  border-radius: 8px;
   padding: 2rem;
-  animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  border: 1px solid var(--border-light);
-  border-bottom: none;
-}
-
-@media (min-width: 768px) {
-  .modal-content {
-    border-radius: 24px;
-    border-bottom: 1px solid var(--border-light);
-  }
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.95);
 }
 
 .form-group {
@@ -249,21 +252,22 @@ body {
 .form-group label {
   font-size: 0.9rem;
   color: var(--text-secondary);
+  font-weight: 600;
 }
 
 .form-input {
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid var(--border-light);
-  border-radius: 8px;
+  background: #18181b;
+  border: 1px solid #3f3f46;
+  border-radius: 6px;
   padding: 0.75rem 1rem;
-  color: var(--text-primary);
+  color: #ffffff;
   font-size: 1rem;
   outline: none;
   transition: border-color 0.2s;
 }
 
 .form-input:focus {
-  border-color: var(--accent-primary);
+  border-color: #ffffff;
 }
 
 /* Cleaning Card */

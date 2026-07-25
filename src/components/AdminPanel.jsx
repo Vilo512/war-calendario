@@ -173,8 +173,7 @@ export default function AdminPanel({ onClose }) {
     <div style={{
       position: 'fixed',
       top: 0, left: 0, right: 0, bottom: 0,
-      background: 'rgba(0,0,0,0.85)',
-      backdropFilter: 'blur(10px)',
+      background: 'rgba(10, 10, 12, 0.94)',
       display: 'flex',
       justify: 'center',
       alignItems: 'center',
