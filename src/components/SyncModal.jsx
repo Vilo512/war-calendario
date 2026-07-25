@@ -10,6 +10,10 @@ export default function SyncModal({ isOpen, onClose, visibleBookings = [], selec
   const roomLabel = selectedRoomFilter === 'ALL' ? 'Todas las salas' : selectedRoomFilter;
   const viewLabel = viewMode === 'month' ? 'Mes actual' : 'Semana actual';
 
+  const feedUrl = selectedRoomFilter === 'ALL'
+    ? 'https://geticalfeed-216846008793-uc.a.run.app'
+    : `https://geticalfeed-216846008793-uc.a.run.app?room=${encodeURIComponent(selectedRoomFilter)}`;
+
   const handleDownloadIcs = () => {
     const filename = `reservas_${roomLabel.toLowerCase().replace(/\s+/g, '_')}.ics`;
     downloadICalFromBookings(visibleBookings, filename);
@@ -18,7 +22,6 @@ export default function SyncModal({ isOpen, onClose, visibleBookings = [], selec
   };
 
   const handleCopyFeed = () => {
-    const feedUrl = 'https://geticalfeed-216846008793-uc.a.run.app';
     navigator.clipboard.writeText(feedUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -102,8 +105,10 @@ export default function SyncModal({ isOpen, onClose, visibleBookings = [], selec
           <div style={{ background: '#18181b', padding: '0.9rem', borderRadius: '8px', border: '1px solid var(--border-strong)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
               <div>
-                <div style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>Sincronización Automática (URL Feed)</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Suscripción iCal en tiempo real para todas las reservas</div>
+                <div style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>Suscripción en Vivo (URL Feed iCal)</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  Enlace de actualización automática ({selectedRoomFilter === 'ALL' ? 'Todas las salas' : `Filtro: ${selectedRoomFilter}`})
+                </div>
               </div>
               <button 
                 className="btn btn-secondary" 
