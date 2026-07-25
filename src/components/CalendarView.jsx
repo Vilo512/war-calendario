@@ -3,6 +3,7 @@ import { collection, onSnapshot, query, orderBy, doc, deleteDoc, updateDoc } fro
 import { db } from '../firebase/config';
 import { isAdminRole } from '../utils/roleUtils';
 import AttendeesModal from './AttendeesModal';
+import RoomPickerModal from './RoomPickerModal';
 
 export default function CalendarView({ user, userRole, onOpenBooking }) {
   const [bookings, setBookings] = useState([]);
@@ -13,6 +14,7 @@ export default function CalendarView({ user, userRole, onOpenBooking }) {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedRoomFilter, setSelectedRoomFilter] = useState('ALL'); // 'ALL' or specific room name
   const [selectedBookingForAttendees, setSelectedBookingForAttendees] = useState(null);
+  const [isRoomPickerOpen, setIsRoomPickerOpen] = useState(false);
 
   const defaultRooms = ['Estudio A', 'Estudio B', 'Sala Conferencias'];
 
@@ -444,18 +446,27 @@ export default function CalendarView({ user, userRole, onOpenBooking }) {
         <h2 className="title" style={{ margin: 0 }}>{headerText}</h2>
         
         <div className="calendar-controls" style={{ flexWrap: 'wrap', gap: '0.6rem' }}>
-          {/* Selector de filtro por Sala */}
-          <select 
-            className="form-input"
-            style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', width: 'auto' }}
-            value={selectedRoomFilter}
-            onChange={(e) => setSelectedRoomFilter(e.target.value)}
+          {/* Botón táctil para el selector de filtro por Sala (Action Sheet / Modal en móvil) */}
+          <button 
+            className="btn btn-secondary"
+            style={{ 
+              fontSize: '0.85rem', 
+              padding: '0.4rem 0.8rem', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '0.4rem',
+              borderColor: selectedRoomFilter !== 'ALL' ? 'var(--accent-primary)' : undefined,
+              color: selectedRoomFilter !== 'ALL' ? 'var(--accent-primary)' : undefined,
+              fontWeight: selectedRoomFilter !== 'ALL' ? 'bold' : 'normal'
+            }}
+            onClick={() => setIsRoomPickerOpen(true)}
           >
-            <option value="ALL">Todas las salas</option>
-            {availableRooms.map(r => (
-              <option key={r} value={r}>{r}</option>
-            ))}
-          </select>
+            <span>🏛️</span>
+            <span>
+              {selectedRoomFilter === 'ALL' ? 'Todas las salas' : selectedRoomFilter}
+            </span>
+            <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>▾</span>
+          </button>
 
           {/* Selector de vista Mes / Semana */}
           <div className="view-toggles">
@@ -492,6 +503,15 @@ export default function CalendarView({ user, userRole, onOpenBooking }) {
           handleToggleAttendance(b);
           setSelectedBookingForAttendees(null);
         }}
+      />
+
+      {/* Modal / Action Sheet de Selección Táctil de Sala para Móvil */}
+      <RoomPickerModal
+        isOpen={isRoomPickerOpen}
+        onClose={() => setIsRoomPickerOpen(false)}
+        rooms={availableRooms}
+        selectedRoom={selectedRoomFilter}
+        onSelectRoom={(r) => setSelectedRoomFilter(r)}
       />
     </div>
   );
