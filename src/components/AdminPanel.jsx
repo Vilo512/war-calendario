@@ -211,7 +211,7 @@ export default function AdminPanel({ isOpen, onClose, user }) {
         </div>
 
         {/* Pestanas */}
-        <div className="view-toggles" style={{ marginBottom: '1.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+        <div className="view-toggles" style={{ marginBottom: '1.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.4rem', padding: '4px', background: '#18181b', borderRadius: '8px' }}>
           <button 
             className={`toggle-btn ${activeTab === 'users' ? 'active' : ''}`}
             onClick={() => setActiveTab('users')}
@@ -227,11 +227,15 @@ export default function AdminPanel({ isOpen, onClose, user }) {
           <button 
             className={`toggle-btn ${activeTab === 'incidents' ? 'active' : ''}`}
             onClick={() => setActiveTab('incidents')}
-            style={{ 
-              position: 'relative',
-              borderColor: incidents.filter(i => i.status === 'OPEN').length > 0 ? 'var(--danger)' : undefined,
-              color: incidents.filter(i => i.status === 'OPEN').length > 0 ? 'var(--danger)' : undefined
-            }}
+            style={
+              activeTab === 'incidents'
+                ? (incidents.filter(i => i.status === 'OPEN').length > 0
+                    ? { background: 'var(--danger)', color: '#ffffff', fontWeight: '800' }
+                    : { background: '#ffffff', color: '#000000', fontWeight: '800' })
+                : (incidents.filter(i => i.status === 'OPEN').length > 0
+                    ? { border: '1px solid var(--danger)', color: 'var(--danger)' }
+                    : {})
+            }
           >
             ⚠️ Incidencias {incidents.filter(i => i.status === 'OPEN').length > 0 && `(${incidents.filter(i => i.status === 'OPEN').length})`}
           </button>
