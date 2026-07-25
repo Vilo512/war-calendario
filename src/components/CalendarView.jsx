@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, orderBy, doc, deleteDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 
 export default function CalendarView({ user }) {
@@ -127,6 +127,30 @@ export default function CalendarView({ user }) {
     }
   };
 
+  const handleToggleAttendance = async (booking) => {
+    if (!user) return;
+    const attendees = booking.attendees || [];
+    const isAttending = attendees.some(a => a.uid === user.uid);
+    const bookingRef = doc(db, 'bookings', booking.id);
+
+    try {
+      if (isAttending) {
+        const updatedAttendees = attendees.filter(a => a.uid !== user.uid);
+        await updateDoc(bookingRef, { attendees: updatedAttendees });
+      } else {
+        const newAttendee = {
+          uid: user.uid,
+          name: user.displayName || user.email || 'Socio'
+        };
+        const updatedAttendees = [...attendees, newAttendee];
+        await updateDoc(bookingRef, { attendees: updatedAttendees });
+      }
+    } catch (error) {
+      console.error("Error al actualizar asistencia:", error);
+      alert("Error al actualizar la asistencia al evento.");
+    }
+  };
+
   const renderMonthView = () => {
     const days = getMonthDays();
     const todayStr = formatDateString(new Date());
@@ -169,28 +193,60 @@ export default function CalendarView({ user }) {
             {getBookingsForDate(selectedDate).length === 0 ? (
               <p style={{color: 'var(--text-secondary)'}}>No hay reservas en este día.</p>
             ) : (
-              getBookingsForDate(selectedDate).map((booking) => (
-                <div key={booking.id} className="booking-item">
-                  <div className="booking-details">
-                    <span className="booking-name">{booking.name}</span>
-                    <span className="booking-room">
-                      <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{verticalAlign: 'middle', marginRight: '4px', display: 'inline-block'}}>
-                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                      </svg>
-                      {booking.room}
-                    </span>
+              getBookingsForDate(selectedDate).map((booking) => {
+                const attendees = booking.attendees || [];
+                const isAttending = user && attendees.some(a => a.uid === user.uid);
+
+                return (
+                  <div key={booking.id} className="booking-item" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.6rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div className="booking-details">
+                        <span className="booking-name">{booking.name}</span>
+                        <span className="booking-room">
+                          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{verticalAlign: 'middle', marginRight: '4px', display: 'inline-block'}}>
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                          </svg>
+                          {booking.room}
+                        </span>
+                      </div>
+                      <div className="booking-time" style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                        {booking.time}
+                        {canDelete(booking) && (
+                          <button onClick={() => handleDelete(booking)} style={{background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '2px', fontSize: '1.2rem'}} title="Borrar Reserva">
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.08)', fontSize: '0.85rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>👥 Asistentes ({attendees.length}):</span>
+                        {attendees.length === 0 ? (
+                          <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.8rem' }}>Nadie apuntado aún</span>
+                        ) : (
+                          attendees.map(a => (
+                            <span key={a.uid} style={{ background: 'rgba(255,255,255,0.1)', color: 'white', padding: '1px 6px', borderRadius: '4px', fontSize: '0.75rem' }}>
+                              {a.name}
+                            </span>
+                          ))
+                        )}
+                      </div>
+
+                      {user && (
+                        <button 
+                          onClick={() => handleToggleAttendance(booking)} 
+                          className={isAttending ? "btn btn-secondary" : "btn"}
+                          style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem', whitespace: 'nowrap' }}
+                        >
+                          {isAttending ? '✓ Me apunté' : '+ Apuntarme'}
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className="booking-time" style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
-                    {booking.time}
-                    {canDelete(booking) && (
-                      <button onClick={() => handleDelete(booking)} style={{background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '2px', fontSize: '1.2rem'}} title="Borrar Reserva">
-                        ×
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
@@ -219,18 +275,34 @@ export default function CalendarView({ user }) {
                 {dayBookings.length === 0 ? (
                   <div className="empty-day-slot">-</div>
                 ) : (
-                  dayBookings.map((booking) => (
-                    <div key={booking.id} className="booking-card-mini">
-                      <div className="mini-time" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                        {booking.time}
-                        {canDelete(booking) && (
-                          <button onClick={() => handleDelete(booking)} style={{background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '0', fontSize: '1rem', lineHeight: '1'}} title="Borrar Reserva">×</button>
+                  dayBookings.map((booking) => {
+                    const attendees = booking.attendees || [];
+                    const isAttending = user && attendees.some(a => a.uid === user.uid);
+
+                    return (
+                      <div key={booking.id} className="booking-card-mini">
+                        <div className="mini-time" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                          {booking.time}
+                          {canDelete(booking) && (
+                            <button onClick={() => handleDelete(booking)} style={{background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '0', fontSize: '1rem', lineHeight: '1'}} title="Borrar Reserva">×</button>
+                          )}
+                        </div>
+                        <div className="mini-name">{booking.name}</div>
+                        <div className="mini-room">{booking.room}</div>
+                        {user && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.4rem', paddingTop: '0.3rem', borderTop: '1px solid rgba(255,255,255,0.08)', fontSize: '0.75rem' }}>
+                            <span style={{ color: 'var(--text-secondary)' }}>👥 {attendees.length}</span>
+                            <button 
+                              onClick={() => handleToggleAttendance(booking)}
+                              style={{ background: isAttending ? 'rgba(16, 185, 129, 0.2)' : 'rgba(99, 102, 241, 0.2)', color: isAttending ? 'var(--success)' : 'var(--accent-primary)', border: 'none', borderRadius: '4px', padding: '1px 5px', fontSize: '0.7rem', cursor: 'pointer' }}
+                            >
+                              {isAttending ? '✓ Apuntado' : '+ Asistir'}
+                            </button>
+                          </div>
                         )}
                       </div>
-                      <div className="mini-name">{booking.name}</div>
-                      <div className="mini-room">{booking.room}</div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>

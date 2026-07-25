@@ -21,7 +21,8 @@ service cloud.firestore {
     match /bookings/{bookingId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isAdmin() || (request.auth != null && resource.data.userId == request.auth.uid);
+      allow update: if request.auth != null;
+      allow delete: if isAdmin() || (request.auth != null && resource.data.userId == request.auth.uid);
     }
     
     // Colección de Salas (Rooms)
