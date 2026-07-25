@@ -94,14 +94,14 @@ export default function CalendarView({ user, userRole, onOpenBooking }) {
   };
 
   const getWeekDays = () => {
-    const day = currentDate.getDay();
-    const diff = currentDate.getDate() - day + (day === 0 ? -6 : 1);
-    const monday = new Date(currentDate.setDate(diff));
+    const temp = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+    const day = temp.getDay();
+    const diff = temp.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(temp.getFullYear(), temp.getMonth(), diff);
     
     const week = [];
     for (let i = 0; i < 7; i++) {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + i);
+      const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
       week.push(d);
     }
     return week;
