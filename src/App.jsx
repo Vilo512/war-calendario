@@ -77,9 +77,33 @@ function App() {
   return (
     <div className="app-container">
       <header className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <h1 className="title" style={{margin: 0, fontSize: '2rem'}}>WAR Calendario</h1>
-          <p style={{color: 'var(--text-secondary)'}}>Gestión de Estudios</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ 
+            width: '48px', 
+            height: '48px', 
+            borderRadius: '14px', 
+            background: '#ffffff', 
+            color: '#09090b', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justify: 'center', 
+            boxShadow: '0 0 24px rgba(255, 255, 255, 0.2)' 
+          }}>
+            {/* Stencil Raven Shield Logo */}
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2L4 7v10l8 5 8-5V7l-8-5z" fill="currentColor" fillOpacity="0.12" />
+              <path d="M12 22V12" />
+              <path d="M12 12L4 7" />
+              <path d="M12 12l8-7" />
+              <circle cx="12" cy="7" r="2" fill="currentColor" />
+            </svg>
+          </div>
+          <div>
+            <h1 className="title" style={{margin: 0, fontSize: '1.9rem', letterSpacing: '-0.02em'}}>WAR CALENDARIO</h1>
+            <p style={{color: 'var(--text-secondary)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600}}>
+              Asociación de Juegos · Los Cuervos
+            </p>
+          </div>
         </div>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column' }}>
