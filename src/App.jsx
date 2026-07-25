@@ -112,25 +112,18 @@ export default function App() {
     <div className="app-container">
       <header className="header">
         <div className="header-brand" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ 
-            width: '48px', 
-            height: '48px', 
-            borderRadius: '14px', 
-            background: '#ffffff', 
-            color: '#09090b', 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            boxShadow: '0 0 24px rgba(255, 255, 255, 0.2)' 
-          }}>
-            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2L4 7v10l8 5 8-5V7l-8-5z" fill="currentColor" fillOpacity="0.12" />
-              <path d="M12 22V12" />
-              <path d="M12 12L4 7" />
-              <path d="M12 12l8-7" />
-              <circle cx="12" cy="7" r="2" fill="currentColor" />
-            </svg>
-          </div>
+          <img 
+            src="/logo-circulo.png" 
+            alt="Logo WAR" 
+            style={{ 
+              width: '52px', 
+              height: '52px', 
+              borderRadius: '50%',
+              objectFit: 'cover',
+              boxShadow: '0 0 20px rgba(255, 255, 255, 0.15)',
+              border: '2px solid rgba(255, 255, 255, 0.2)'
+            }} 
+          />
           <div>
             <h1 className="title" style={{margin: 0, fontSize: '1.9rem', letterSpacing: '-0.02em'}}>WAR CALENDARIO</h1>
             <p style={{color: 'var(--text-secondary)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600}}>

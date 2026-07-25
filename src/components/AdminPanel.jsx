@@ -39,6 +39,7 @@ export default function AdminPanel({ isOpen, onClose, user }) {
   const [ancTitle, setAncTitle] = useState('');
   const [ancContent, setAncContent] = useState('');
   const [ancPriority, setAncPriority] = useState('NORMAL');
+  const [ancDuration, setAncDuration] = useState('0'); // '0' = permanente, '1', '3', '7', '14', '30'
   const [msg, setMsg] = useState('');
 
   const [roleLabelsState, setRoleLabelsState] = useState(DEFAULT_ROLE_LABELS);
@@ -135,11 +136,13 @@ export default function AdminPanel({ isOpen, onClose, user }) {
         title: ancTitle,
         content: ancContent,
         priority: ancPriority,
+        durationDays: parseInt(ancDuration, 10) || 0,
         user
       });
       setAncTitle('');
       setAncContent('');
       setAncPriority('NORMAL');
+      setAncDuration('0');
       setMsg('Anuncio oficial publicado con éxito.');
       setTimeout(() => setMsg(''), 3000);
     } catch (err) {
@@ -408,8 +411,8 @@ export default function AdminPanel({ isOpen, onClose, user }) {
                 </div>
               </div>
 
-              <button type="submit" className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}>
-                ✓ Guardar Nombres de Estatus
+              <button type="submit" className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '0.4rem 1rem' }}>
+                Guardar
               </button>
             </form>
 
@@ -666,18 +669,37 @@ export default function AdminPanel({ isOpen, onClose, user }) {
                 />
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.6rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Prioridad:</label>
-                  <select 
-                    className="form-input" 
-                    style={{ padding: '0.3rem 0.6rem', width: 'auto' }}
-                    value={ancPriority}
-                    onChange={(e) => setAncPriority(e.target.value)}
-                  >
-                    <option value="NORMAL">Normal (Comunicado)</option>
-                    <option value="URGENT">Urgente (Aviso Oficial)</option>
-                  </select>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.8rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Prioridad:</label>
+                    <select 
+                      className="form-input" 
+                      style={{ padding: '0.3rem 0.6rem', width: 'auto' }}
+                      value={ancPriority}
+                      onChange={(e) => setAncPriority(e.target.value)}
+                    >
+                      <option value="NORMAL">Normal (Comunicado)</option>
+                      <option value="URGENT">Urgente (Aviso Oficial)</option>
+                    </select>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Fijar durante:</label>
+                    <select 
+                      className="form-input" 
+                      style={{ padding: '0.3rem 0.6rem', width: 'auto' }}
+                      value={ancDuration}
+                      onChange={(e) => setAncDuration(e.target.value)}
+                    >
+                      <option value="0">Indefinido (Hasta eliminar)</option>
+                      <option value="1">1 día</option>
+                      <option value="3">3 días</option>
+                      <option value="7">7 días</option>
+                      <option value="14">14 días</option>
+                      <option value="30">30 días</option>
+                    </select>
+                  </div>
                 </div>
 
                 <button type="submit" className="btn" style={{ fontSize: '0.85rem', padding: '0.5rem 1.2rem' }}>
@@ -687,7 +709,7 @@ export default function AdminPanel({ isOpen, onClose, user }) {
             </form>
 
             {/* Listado de anuncios publicados */}
-            <h4 style={{ fontSize: '1rem', marginBottom: '0.8rem', color: 'var(--text-secondary)' }}>Anuncios Publicados</h4>
+            <h4 style={{ fontSize: '1rem', marginBottom: '0.8rem', color: 'var(--text-secondary)' }}>Anuncios Publicados ({announcements.length})</h4>
 
             {announcements.length === 0 ? (
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>No hay anuncios publicados. Crea el primero arriba.</p>
@@ -696,11 +718,20 @@ export default function AdminPanel({ isOpen, onClose, user }) {
                 {announcements.map(a => (
                   <div key={a.id} className="booking-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.6rem' }}>
                     <div style={{ flex: 1, minWidth: '240px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem', flexWrap: 'wrap' }}>
                         <span style={{ fontWeight: 'bold', fontSize: '0.95rem' }}>{a.title}</span>
                         {a.priority === 'URGENT' && (
                           <span style={{ fontSize: '0.7rem', background: 'rgba(239, 68, 68, 0.2)', color: 'var(--danger)', border: '1px solid var(--danger)', padding: '1px 6px', borderRadius: '4px', fontWeight: 'bold' }}>
                             Urgente
+                          </span>
+                        )}
+                        {a.durationDays > 0 ? (
+                          <span style={{ fontSize: '0.7rem', background: 'rgba(99, 102, 241, 0.2)', color: 'var(--accent-primary)', border: '1px solid var(--accent-primary)', padding: '1px 6px', borderRadius: '4px' }}>
+                            Fijado {a.durationDays} día(s)
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '0.7rem', background: 'rgba(255, 255, 255, 0.08)', color: 'var(--text-secondary)', padding: '1px 6px', borderRadius: '4px' }}>
+                            Indefinido
                           </span>
                         )}
                       </div>
@@ -710,12 +741,12 @@ export default function AdminPanel({ isOpen, onClose, user }) {
                         </p>
                       )}
                       <div style={{ fontSize: '0.75rem', color: 'var(--accent-secondary)' }}>
-                        Por {a.createdBy || 'Admin'}
+                        Publicado por {a.createdBy || 'Admin'}
                       </div>
                     </div>
                     <button 
                       className="btn" 
-                      style={{ background: 'var(--danger)', padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}
+                      style={{ background: 'var(--danger)', borderColor: 'var(--danger)', color: '#ffffff', padding: '0.35rem 0.8rem', fontSize: '0.78rem', cursor: 'pointer' }}
                       onClick={() => handleDeleteAnnouncement(a.id)}
                     >
                       Eliminar
