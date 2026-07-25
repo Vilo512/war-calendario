@@ -3,7 +3,7 @@ import { doc, runTransaction, collection, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase/config';
 
 export default function BookingModal({ isOpen, onClose, user, userRole }) {
-  const [formData, setFormData] = useState({ name: '', room: '', date: '', time: '' });
+  const [formData, setFormData] = useState({ name: '', room: '', date: '', time: '', maxAttendees: '' });
   const [roomsList, setRoomsList] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -43,6 +43,8 @@ export default function BookingModal({ isOpen, onClose, user, userRole }) {
     const bookingId = `${selectedRoom.replace(/\s+/g, '_')}_${formData.date}_${formData.time.replace(':', '-')}`;
     const bookingRef = doc(db, 'bookings', bookingId);
 
+    const parsedMax = formData.maxAttendees ? parseInt(formData.maxAttendees, 10) : null;
+
     setSubmitting(true);
     try {
       await runTransaction(db, async (transaction) => {
@@ -52,6 +54,7 @@ export default function BookingModal({ isOpen, onClose, user, userRole }) {
         }
         transaction.set(bookingRef, {
           ...formData,
+          maxAttendees: parsedMax,
           room: selectedRoom,
           userId: user ? user.uid : 'anonymous',
           userEmail: user ? user.email : '',
@@ -87,7 +90,7 @@ export default function BookingModal({ isOpen, onClose, user, userRole }) {
               <input 
                 type="text" 
                 className="form-input" 
-                placeholder="Ej. Partida de Warhammer / Pintura" 
+                placeholder="Ej. Partida de Catán / Warhammer" 
                 value={formData.name}
                 onChange={(e) => setFormData({...formData, name: e.target.value})}
                 required
@@ -128,6 +131,19 @@ export default function BookingModal({ isOpen, onClose, user, userRole }) {
                   required
                 />
               </div>
+            </div>
+
+            <div className="form-group">
+              <label>Límite de Asistentes / Plazas (Opcional)</label>
+              <input 
+                type="number" 
+                min="1"
+                max="100"
+                className="form-input" 
+                placeholder="Ej. 4 (dejar vacío si no hay límite)" 
+                value={formData.maxAttendees}
+                onChange={(e) => setFormData({...formData, maxAttendees: e.target.value})}
+              />
             </div>
             
             {errorMsg && (

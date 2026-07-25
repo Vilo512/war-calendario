@@ -131,6 +131,13 @@ export default function CalendarView({ user }) {
     if (!user) return;
     const attendees = booking.attendees || [];
     const isAttending = attendees.some(a => a.uid === user.uid);
+    const maxCount = booking.maxAttendees || null;
+
+    if (!isAttending && maxCount && attendees.length >= maxCount) {
+      alert(`El evento ya ha alcanzado el límite máximo de ${maxCount} participantes.`);
+      return;
+    }
+
     const bookingRef = doc(db, 'bookings', booking.id);
 
     try {
@@ -196,6 +203,8 @@ export default function CalendarView({ user }) {
               getBookingsForDate(selectedDate).map((booking) => {
                 const attendees = booking.attendees || [];
                 const isAttending = user && attendees.some(a => a.uid === user.uid);
+                const maxCount = booking.maxAttendees || null;
+                const isFull = maxCount && attendees.length >= maxCount;
 
                 return (
                   <div key={booking.id} className="booking-item" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.6rem' }}>
@@ -222,7 +231,9 @@ export default function CalendarView({ user }) {
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.08)', fontSize: '0.85rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                        <span style={{ color: 'var(--text-secondary)' }}>👥 Asistentes ({attendees.length}):</span>
+                        <span style={{ color: 'var(--text-secondary)' }}>
+                          👥 Asistentes ({attendees.length}{maxCount ? `/${maxCount}` : ''}):
+                        </span>
                         {attendees.length === 0 ? (
                           <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.8rem' }}>Nadie apuntado aún</span>
                         ) : (
@@ -237,10 +248,17 @@ export default function CalendarView({ user }) {
                       {user && (
                         <button 
                           onClick={() => handleToggleAttendance(booking)} 
+                          disabled={!isAttending && isFull}
                           className={isAttending ? "btn btn-secondary" : "btn"}
-                          style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem', whitespace: 'nowrap' }}
+                          style={{ 
+                            padding: '0.2rem 0.6rem', 
+                            fontSize: '0.75rem', 
+                            whitespace: 'nowrap',
+                            opacity: (!isAttending && isFull) ? 0.6 : 1,
+                            cursor: (!isAttending && isFull) ? 'not-allowed' : 'pointer'
+                          }}
                         >
-                          {isAttending ? '✓ Me apunté' : '+ Apuntarme'}
+                          {isAttending ? '✓ Me apunté' : (isFull ? 'Completo (Lleno)' : '+ Apuntarme')}
                         </button>
                       )}
                     </div>
@@ -278,6 +296,8 @@ export default function CalendarView({ user }) {
                   dayBookings.map((booking) => {
                     const attendees = booking.attendees || [];
                     const isAttending = user && attendees.some(a => a.uid === user.uid);
+                    const maxCount = booking.maxAttendees || null;
+                    const isFull = maxCount && attendees.length >= maxCount;
 
                     return (
                       <div key={booking.id} className="booking-card-mini">
@@ -291,12 +311,21 @@ export default function CalendarView({ user }) {
                         <div className="mini-room">{booking.room}</div>
                         {user && (
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.4rem', paddingTop: '0.3rem', borderTop: '1px solid rgba(255,255,255,0.08)', fontSize: '0.75rem' }}>
-                            <span style={{ color: 'var(--text-secondary)' }}>👥 {attendees.length}</span>
+                            <span style={{ color: 'var(--text-secondary)' }}>👥 {attendees.length}{maxCount ? `/${maxCount}` : ''}</span>
                             <button 
                               onClick={() => handleToggleAttendance(booking)}
-                              style={{ background: isAttending ? 'rgba(16, 185, 129, 0.2)' : 'rgba(99, 102, 241, 0.2)', color: isAttending ? 'var(--success)' : 'var(--accent-primary)', border: 'none', borderRadius: '4px', padding: '1px 5px', fontSize: '0.7rem', cursor: 'pointer' }}
+                              disabled={!isAttending && isFull}
+                              style={{ 
+                                background: isAttending ? 'rgba(16, 185, 129, 0.2)' : (isFull ? 'rgba(255,255,255,0.1)' : 'rgba(99, 102, 241, 0.2)'), 
+                                color: isAttending ? 'var(--success)' : (isFull ? 'var(--text-secondary)' : 'var(--accent-primary)'), 
+                                border: 'none', 
+                                borderRadius: '4px', 
+                                padding: '1px 5px', 
+                                fontSize: '0.7rem', 
+                                cursor: (!isAttending && isFull) ? 'not-allowed' : 'pointer' 
+                              }}
                             >
-                              {isAttending ? '✓ Apuntado' : '+ Asistir'}
+                              {isAttending ? '✓ Apuntado' : (isFull ? 'Lleno' : '+ Asistir')}
                             </button>
                           </div>
                         )}
