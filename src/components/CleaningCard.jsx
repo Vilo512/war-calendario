@@ -135,25 +135,25 @@ export default function CleaningCard({ user, userRole }) {
     }
   };
 
-  // Acciones sobre permutas
+  // Acciones sobre permutas / cambios
   const handleAcceptSwap = async (swap) => {
     try {
       await acceptSwapRequest(swap);
-      setActionMsg('¡Permuta aceptada con éxito!');
+      setActionMsg('¡Cambio de turno aceptado con éxito!');
       setTimeout(() => setActionMsg(''), 3000);
     } catch (err) {
-      console.error("Error al aceptar permuta:", err);
-      alert('Error al aceptar permuta: ' + err.message);
+      console.error("Error al aceptar cambio:", err);
+      alert('Error al aceptar cambio: ' + err.message);
     }
   };
 
   const handleRejectSwap = async (swapId) => {
     try {
       await rejectSwapRequest(swapId);
-      setActionMsg('Permuta rechazada.');
+      setActionMsg('Solicitud de cambio rechazada.');
       setTimeout(() => setActionMsg(''), 3000);
     } catch (err) {
-      console.error("Error al rechazar permuta:", err);
+      console.error("Error al rechazar cambio:", err);
     }
   };
 
@@ -255,14 +255,14 @@ export default function CleaningCard({ user, userRole }) {
           {pendingIncomingSwaps.map(swap => (
             <div key={swap.id} style={{ background: 'rgba(245, 158, 11, 0.15)', border: '1px solid #f59e0b', borderRadius: '6px', padding: '0.8rem' }}>
               <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#f59e0b', marginBottom: '0.3rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <span>🔄</span> Solicitud de Permuta Recibida
+                <span>🔄</span> Solicitud de Cambio Recibida
               </div>
               <p style={{ fontSize: '0.8rem', margin: '0 0 0.6rem 0', color: 'var(--text-primary)' }}>
                 <strong>{swap.requesterName}</strong> desea intercambiar su semana (<strong>{swap.requesterWeekRange}</strong>) por tu semana (<strong>{swap.targetWeekRange}</strong>).
               </p>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <button className="btn btn-success" style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem' }} onClick={() => handleAcceptSwap(swap)}>
-                  ✓ Aceptar Permuta
+                  ✓ Aceptar Cambio
                 </button>
                 <button className="btn btn-secondary" style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem', background: 'rgba(239, 68, 68, 0.2)', color: 'var(--danger)' }} onClick={() => handleRejectSwap(swap.id)}>
                   × Rechazar
@@ -305,7 +305,7 @@ export default function CleaningCard({ user, userRole }) {
               </strong>
               {isSwapTurn && (
                 <span style={{ background: 'rgba(245, 158, 11, 0.2)', color: '#f59e0b', fontSize: '0.7rem', padding: '1px 6px', borderRadius: '4px', border: '1px solid #f59e0b' }}>
-                  🔄 Permuta (Original: {originalAssigneeName})
+                  🔄 Cambio (Original: {originalAssigneeName})
                 </span>
               )}
             </div>
@@ -346,7 +346,7 @@ export default function CleaningCard({ user, userRole }) {
         )
       )}
 
-      {/* Botones de acción secundaria (Permuta / Incidencia) */}
+      {/* Botones de acción secundaria (Cambio / Incidencia) */}
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.8rem', flexWrap: 'wrap' }}>
         {members.length > 1 && (
           <button 
@@ -354,7 +354,7 @@ export default function CleaningCard({ user, userRole }) {
             style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
             onClick={() => setIsSwapModalOpen(true)}
           >
-            <span>🔄</span> Permutar Turno
+            <span>🔄</span> Cambiar Turno
           </button>
         )}
         <button 

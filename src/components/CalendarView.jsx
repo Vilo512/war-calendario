@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, query, orderBy, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { isAdminRole } from '../utils/roleUtils';
+import AttendeesModal from './AttendeesModal';
 
 export default function CalendarView({ user, userRole, onOpenBooking }) {
   const [bookings, setBookings] = useState([]);
@@ -11,6 +12,7 @@ export default function CalendarView({ user, userRole, onOpenBooking }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedRoomFilter, setSelectedRoomFilter] = useState('ALL'); // 'ALL' or specific room name
+  const [selectedBookingForAttendees, setSelectedBookingForAttendees] = useState(null);
 
   const defaultRooms = ['Estudio A', 'Estudio B', 'Sala Conferencias'];
 
@@ -305,9 +307,13 @@ export default function CalendarView({ user, userRole, onOpenBooking }) {
                             </div>
 
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.4rem', borderTop: '1px solid rgba(255,255,255,0.08)', fontSize: '0.8rem' }}>
-                              <span style={{ color: 'var(--text-secondary)' }}>
-                                👥 {attendees.length}{maxCount ? `/${maxCount}` : ''}
-                              </span>
+                              <button
+                                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: 0, fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '3px' }}
+                                onClick={() => setSelectedBookingForAttendees(booking)}
+                                title="Ver lista completa de asistentes"
+                              >
+                                👥 {attendees.length}{maxCount ? `/${maxCount}` : ''} <span style={{ fontSize: '0.7rem', color: 'var(--accent-primary)' }}>🔍</span>
+                              </button>
 
                               {user && (
                                 <button 
@@ -392,7 +398,13 @@ export default function CalendarView({ user, userRole, onOpenBooking }) {
                         <div className="mini-room" style={{ color: 'var(--accent-primary)', fontWeight: 'bold' }}>{booking.room}</div>
                         {user && (
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.4rem', paddingTop: '0.3rem', borderTop: '1px solid rgba(255,255,255,0.08)', fontSize: '0.75rem' }}>
-                            <span style={{ color: 'var(--text-secondary)' }}>👥 {attendees.length}{maxCount ? `/${maxCount}` : ''}</span>
+                            <button
+                              style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: 0, fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '2px' }}
+                              onClick={() => setSelectedBookingForAttendees(booking)}
+                              title="Ver lista de asistentes"
+                            >
+                              👥 {attendees.length}{maxCount ? `/${maxCount}` : ''}
+                            </button>
                             <button 
                               onClick={() => handleToggleAttendance(booking)}
                               disabled={!isAttending && isFull}
@@ -469,6 +481,18 @@ export default function CalendarView({ user, userRole, onOpenBooking }) {
       ) : (
         viewMode === 'month' ? renderMonthView() : renderWeekView()
       )}
+
+      {/* Modal de Detalle de Asistentes */}
+      <AttendeesModal
+        isOpen={!!selectedBookingForAttendees}
+        onClose={() => setSelectedBookingForAttendees(null)}
+        booking={selectedBookingForAttendees}
+        user={user}
+        onToggleAttendance={(b) => {
+          handleToggleAttendance(b);
+          setSelectedBookingForAttendees(null);
+        }}
+      />
     </div>
   );
 }

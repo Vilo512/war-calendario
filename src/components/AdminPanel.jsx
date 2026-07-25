@@ -9,6 +9,11 @@ import {
   dismissIncident, 
   INCIDENT_TYPES 
 } from '../services/cleaningIncidentService';
+import { 
+  createAnnouncement, 
+  deleteAnnouncement, 
+  subscribeAnnouncements 
+} from '../services/announcementService';
 
 export default function AdminPanel({ isOpen, onClose, user }) {
   const [users, setUsers] = useState([]);
@@ -16,11 +21,16 @@ export default function AdminPanel({ isOpen, onClose, user }) {
   const [cleaningMembers, setCleaningMembers] = useState([]);
   const [weeksMap, setWeeksMap] = useState({});
   const [incidents, setIncidents] = useState([]);
-  const [activeTab, setActiveTab] = useState('users'); // 'users', 'cleaning', 'incidents', 'rooms'
+  const [announcements, setAnnouncements] = useState([]);
+  const [activeTab, setActiveTab] = useState('users'); // 'users', 'cleaning', 'incidents', 'announcements', 'rooms'
 
   const [selectedUserToAdd, setSelectedUserToAdd] = useState('');
   const [manualMemberName, setManualMemberName] = useState('');
   const [newRoomName, setNewRoomName] = useState('');
+  
+  const [ancTitle, setAncTitle] = useState('');
+  const [ancContent, setAncContent] = useState('');
+  const [ancPriority, setAncPriority] = useState('NORMAL');
   const [msg, setMsg] = useState('');
 
   // Escuchar usuarios
@@ -76,7 +86,48 @@ export default function AdminPanel({ isOpen, onClose, user }) {
     return () => unsub();
   }, [isOpen]);
 
+  // Escuchar anuncios oficiales
+  useEffect(() => {
+    if (!isOpen) return;
+    const unsub = subscribeAnnouncements((list) => {
+      setAnnouncements(list);
+    });
+    return () => unsub();
+  }, [isOpen]);
+
   if (!isOpen) return null;
+
+  const handleAddAnnouncement = async (e) => {
+    e.preventDefault();
+    if (!ancTitle.trim()) return;
+    try {
+      await createAnnouncement({
+        title: ancTitle,
+        content: ancContent,
+        priority: ancPriority,
+        user
+      });
+      setAncTitle('');
+      setAncContent('');
+      setAncPriority('NORMAL');
+      setMsg('Anuncio oficial publicado con éxito.');
+      setTimeout(() => setMsg(''), 3000);
+    } catch (err) {
+      setMsg('Error publicando anuncio: ' + err.message);
+    }
+  };
+
+  const handleDeleteAnnouncement = async (id) => {
+    if (window.confirm('¿Eliminar este anuncio oficial?')) {
+      try {
+        await deleteAnnouncement(id);
+        setMsg('Anuncio eliminado.');
+        setTimeout(() => setMsg(''), 3000);
+      } catch (err) {
+        setMsg('Error eliminando anuncio: ' + err.message);
+      }
+    }
+  };
 
   // Cambiar rol de un usuario
   const handleRoleChange = async (targetUserId, newRoleValue) => {
@@ -240,6 +291,12 @@ export default function AdminPanel({ isOpen, onClose, user }) {
             ⚠️ Incidencias {incidents.filter(i => i.status === 'OPEN').length > 0 && `(${incidents.filter(i => i.status === 'OPEN').length})`}
           </button>
           <button 
+            className={`toggle-btn ${activeTab === 'announcements' ? 'active' : ''}`}
+            onClick={() => setActiveTab('announcements')}
+          >
+            📢 Anuncios ({announcements.length})
+          </button>
+          <button 
             className={`toggle-btn ${activeTab === 'rooms' ? 'active' : ''}`}
             onClick={() => setActiveTab('rooms')}
           >
@@ -337,12 +394,12 @@ export default function AdminPanel({ isOpen, onClose, user }) {
               )}
             </div>
 
-            {/* Permutas Aceptadas e Intercambios */}
+            {/* Cambios Aceptados e Intercambios */}
             <div style={{ marginTop: '2rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1.2rem' }}>
-              <h4 style={{ fontSize: '1rem', marginBottom: '0.8rem', color: 'var(--text-secondary)' }}>Permutas Aceptadas y Excepciones Activas</h4>
+              <h4 style={{ fontSize: '1rem', marginBottom: '0.8rem', color: 'var(--text-secondary)' }}>Cambios Aceptados y Excepciones Activas</h4>
               
               {Object.keys(weeksMap).filter(wId => wId !== 'config' && weeksMap[wId]?.isSwap).length === 0 ? (
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>No hay permutas o intercambios activos en este momento.</p>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>No hay cambios de turno o excepciones activas en este momento.</p>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {Object.keys(weeksMap)
@@ -461,6 +518,104 @@ export default function AdminPanel({ isOpen, onClose, user }) {
                         </button>
                       </div>
                     )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tab Anuncios */}
+        {activeTab === 'announcements' && (
+          <div>
+            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: 'var(--accent-primary)' }}>
+              📢 Tablero de Anuncios y Comunicados Oficiales
+            </h3>
+
+            {/* Formulario de publicación */}
+            <form onSubmit={handleAddAnnouncement} style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', background: 'rgba(255,255,255,0.03)', padding: '1.2rem', borderRadius: '8px', marginBottom: '1.5rem', border: '1px solid var(--border-light)' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.3rem', fontWeight: 'bold' }}>
+                  Título del Anuncio:
+                </label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  placeholder="Ej. Cierre de instalaciones por mantenimiento el Sábado..."
+                  value={ancTitle}
+                  onChange={(e) => setAncTitle(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.3rem', fontWeight: 'bold' }}>
+                  Mensaje / Contenido (Opcional):
+                </label>
+                <textarea 
+                  className="form-input" 
+                  rows="3" 
+                  placeholder="Detalles sobre el evento o aviso..."
+                  value={ancContent}
+                  onChange={(e) => setAncContent(e.target.value)}
+                  style={{ width: '100%', resize: 'vertical' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.6rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Prioridad:</label>
+                  <select 
+                    className="form-input" 
+                    style={{ padding: '0.3rem 0.6rem', width: 'auto' }}
+                    value={ancPriority}
+                    onChange={(e) => setAncPriority(e.target.value)}
+                  >
+                    <option value="NORMAL">📢 Normal (Comunicado)</option>
+                    <option value="URGENT">⚠️ Urgente (Aviso Oficial)</option>
+                  </select>
+                </div>
+
+                <button type="submit" className="btn" style={{ fontSize: '0.85rem', padding: '0.5rem 1.2rem' }}>
+                  + Publicar Anuncio
+                </button>
+              </div>
+            </form>
+
+            {/* Listado de anuncios publicados */}
+            <h4 style={{ fontSize: '1rem', marginBottom: '0.8rem', color: 'var(--text-secondary)' }}>Anuncios Publicados</h4>
+
+            {announcements.length === 0 ? (
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>No hay anuncios publicados. Crea el primero arriba.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                {announcements.map(a => (
+                  <div key={a.id} className="booking-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.6rem' }}>
+                    <div style={{ flex: 1, minWidth: '240px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
+                        <span style={{ fontWeight: 'bold', fontSize: '0.95rem' }}>{a.title}</span>
+                        {a.priority === 'URGENT' && (
+                          <span style={{ fontSize: '0.7rem', background: 'rgba(239, 68, 68, 0.2)', color: 'var(--danger)', border: '1px solid var(--danger)', padding: '1px 6px', borderRadius: '4px', fontWeight: 'bold' }}>
+                            ⚠️ Urgente
+                          </span>
+                        )}
+                      </div>
+                      {a.content && (
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0.2rem 0', whiteSpace: 'pre-wrap' }}>
+                          {a.content}
+                        </p>
+                      )}
+                      <div style={{ fontSize: '0.75rem', color: 'var(--accent-secondary)' }}>
+                        Por {a.createdBy || 'Admin'}
+                      </div>
+                    </div>
+                    <button 
+                      className="btn" 
+                      style={{ background: 'var(--danger)', padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}
+                      onClick={() => handleDeleteAnnouncement(a.id)}
+                    >
+                      Eliminar
+                    </button>
                   </div>
                 ))}
               </div>

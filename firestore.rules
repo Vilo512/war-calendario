@@ -55,6 +55,12 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Colección de Anuncios Oficiales
+    match /announcements/{announcementId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
     match /{document=**} {
       allow read: if request.auth != null;
       allow write: if isAdmin();

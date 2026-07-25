@@ -8,6 +8,7 @@ import CleaningCard from './components/CleaningCard';
 import CalendarSync from './components/CalendarSync';
 import Login from './components/Login';
 import AdminPanel from './components/AdminPanel';
+import AnnouncementBanner from './components/AnnouncementBanner';
 import { getRoleLabel, isAdminRole, ROLES } from './utils/roleUtils';
 import { subscribeOpenIncidents } from './services/cleaningIncidentService';
 import './index.css';
@@ -204,6 +205,8 @@ export default function App() {
       </header>
 
       <CalendarSync />
+
+      <AnnouncementBanner />
 
       <div className="grid-dashboard">
         <div>
