@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, doc, updateDoc, setDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
-import { ROLES, ROLE_LABELS, normalizeRole, isCleaningMember } from '../utils/roleUtils';
+import { 
+  ROLES, 
+  DEFAULT_ROLE_LABELS, 
+  normalizeRole, 
+  isCleaningMember,
+  getRoleLabel,
+  subscribeRoleLabels,
+  updateRoleLabels
+} from '../utils/roleUtils';
 import { subscribeAllWeeks, resetWeekOverride } from '../services/cleaningSwapService';
 import { 
   subscribeAllIncidents, 
@@ -32,6 +40,28 @@ export default function AdminPanel({ isOpen, onClose, user }) {
   const [ancContent, setAncContent] = useState('');
   const [ancPriority, setAncPriority] = useState('NORMAL');
   const [msg, setMsg] = useState('');
+
+  const [roleLabelsState, setRoleLabelsState] = useState(DEFAULT_ROLE_LABELS);
+
+  // Escuchar nombres de estatus
+  useEffect(() => {
+    if (!isOpen) return;
+    const unsub = subscribeRoleLabels((labels) => {
+      setRoleLabelsState(labels);
+    });
+    return () => unsub();
+  }, [isOpen]);
+
+  const handleSaveRoleLabels = async (e) => {
+    e.preventDefault();
+    try {
+      await updateRoleLabels(roleLabelsState);
+      setMsg('Nombres de estatus guardados correctamente.');
+      setTimeout(() => setMsg(''), 3000);
+    } catch (err) {
+      setMsg('Error guardando nombres de estatus: ' + err.message);
+    }
+  };
 
   // Escuchar usuarios
   useEffect(() => {
@@ -326,7 +356,64 @@ export default function AdminPanel({ isOpen, onClose, user }) {
         {/* Tab Usuarios */}
         {activeTab === 'users' && (
           <div>
-            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem' }}>Lista de Socios y Registro</h3>
+            {/* Formulario para renombrar estatus / roles existentes */}
+            <form onSubmit={handleSaveRoleLabels} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-light)', padding: '1.2rem', borderRadius: '8px', marginBottom: '1.5rem' }}>
+              <h4 style={{ margin: '0 0 0.8rem 0', fontSize: '1rem', color: 'var(--accent-primary)' }}>
+                Renombrar Estatus / Roles del Sistema
+              </h4>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+                Personaliza los nombres de los 4 niveles de estatus que verán los socios en la plataforma:
+              </p>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.8rem', marginBottom: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>Estatus 0 (No socio):</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={roleLabelsState[ROLES.NO_SOCIO] || ''}
+                    onChange={(e) => setRoleLabelsState({ ...roleLabelsState, [ROLES.NO_SOCIO]: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>Estatus 1 (Semisocio):</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={roleLabelsState[ROLES.SEMISOCIO] || ''}
+                    onChange={(e) => setRoleLabelsState({ ...roleLabelsState, [ROLES.SEMISOCIO]: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>Estatus 2 (Socio):</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={roleLabelsState[ROLES.SOCIO] || ''}
+                    onChange={(e) => setRoleLabelsState({ ...roleLabelsState, [ROLES.SOCIO]: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>Estatus 9 (Admin):</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={roleLabelsState[ROLES.ADMIN] || ''}
+                    onChange={(e) => setRoleLabelsState({ ...roleLabelsState, [ROLES.ADMIN]: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+
+              <button type="submit" className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}>
+                ✓ Guardar Nombres de Estatus
+              </button>
+            </form>
+
+            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem' }}>Lista de Socios y Asignación de Estatus</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {users.map((u) => (
                 <div key={u.id} className="booking-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -342,10 +429,10 @@ export default function AdminPanel({ isOpen, onClose, user }) {
                       value={normalizeRole(u.role)}
                       onChange={(e) => handleRoleChange(u.id, parseInt(e.target.value, 10))}
                     >
-                      <option value={ROLES.NO_SOCIO}>{ROLE_LABELS[ROLES.NO_SOCIO]}</option>
-                      <option value={ROLES.SEMISOCIO}>{ROLE_LABELS[ROLES.SEMISOCIO]}</option>
-                      <option value={ROLES.SOCIO}>{ROLE_LABELS[ROLES.SOCIO]}</option>
-                      <option value={ROLES.ADMIN}>{ROLE_LABELS[ROLES.ADMIN]}</option>
+                      <option value={ROLES.NO_SOCIO}>{roleLabelsState[ROLES.NO_SOCIO]}</option>
+                      <option value={ROLES.SEMISOCIO}>{roleLabelsState[ROLES.SEMISOCIO]}</option>
+                      <option value={ROLES.SOCIO}>{roleLabelsState[ROLES.SOCIO]}</option>
+                      <option value={ROLES.ADMIN}>{roleLabelsState[ROLES.ADMIN]}</option>
                     </select>
                   </div>
                 </div>

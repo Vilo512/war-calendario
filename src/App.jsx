@@ -9,7 +9,7 @@ import CalendarSync from './components/CalendarSync';
 import Login from './components/Login';
 import AdminPanel from './components/AdminPanel';
 import AnnouncementBanner from './components/AnnouncementBanner';
-import { getRoleLabel, isAdminRole, ROLES } from './utils/roleUtils';
+import { getRoleLabel, isAdminRole, ROLES, subscribeRoleLabels, DEFAULT_ROLE_LABELS } from './utils/roleUtils';
 import { subscribeOpenIncidents } from './services/cleaningIncidentService';
 import './index.css';
 
@@ -21,6 +21,7 @@ export default function App() {
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [openIncidentsCount, setOpenIncidentsCount] = useState(0);
   const [bookingInitialData, setBookingInitialData] = useState({ date: '', room: '' });
+  const [customRoleLabels, setCustomRoleLabels] = useState(DEFAULT_ROLE_LABELS);
 
   const handleOpenBooking = (initialDate = '', initialRoom = '') => {
     setBookingInitialData({ date: initialDate, room: initialRoom });
@@ -75,10 +76,18 @@ export default function App() {
     };
   }, []);
 
-  // Escuchar incidencias abiertas para la insignia de Admin
+  // Escuchar incidencias abiertas (Badge Admin)
   useEffect(() => {
     const unsub = subscribeOpenIncidents((list) => {
       setOpenIncidentsCount(list.length);
+    });
+    return () => unsub();
+  }, []);
+
+  // Escuchar configuración dinámica de nombres de estatus
+  useEffect(() => {
+    const unsub = subscribeRoleLabels((labels) => {
+      setCustomRoleLabels(labels);
     });
     return () => unsub();
   }, []);
@@ -97,7 +106,7 @@ export default function App() {
 
   const userRole = userProfile ? userProfile.role : ROLES.NO_SOCIO;
   const isAdmin = isAdminRole(userRole);
-  const roleLabel = getRoleLabel(userRole);
+  const roleLabel = getRoleLabel(userRole, customRoleLabels);
 
   return (
     <div className="app-container">
