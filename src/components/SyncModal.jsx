@@ -94,20 +94,20 @@ export default function SyncModal({ isOpen, onClose, visibleBookings = [], selec
             </div>
           </div>
 
-          {/* Opción Descarga .ics */}
-          <div style={{ background: '#18181b', padding: '0.9rem', borderRadius: '8px', border: '1px solid var(--border-strong)' }}>
+          {/* Opción iPhone / Apple Calendar / iCal */}
+          <div style={{ background: '#18181b', padding: '0.9rem', borderRadius: '8px', border: '1px solid var(--accent-primary)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
               <div>
-                <div style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>Archivo .ics (iPhone / Dispositivos Moviles)</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Descarga los eventos visibles para abrirlos localmente</div>
+                <div style={{ fontWeight: 'bold', fontSize: '0.92rem', color: '#ffffff' }}>iPhone / iPad / Apple Calendar</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Añade los eventos visibles directamente a tu calendario nativo</div>
               </div>
               <button 
-                className="btn btn-secondary" 
-                style={{ fontSize: '0.78rem', padding: '0.35rem 0.7rem' }}
+                className="btn" 
+                style={{ fontSize: '0.8rem', padding: '0.45rem 0.9rem' }}
                 onClick={handleDownloadIcs}
                 disabled={visibleBookings.length === 0}
               >
-                {downloaded ? '✓ Exportado' : 'Descargar .ics'}
+                {downloaded ? '✓ Añadido' : 'Añadir a mi iPhone'}
               </button>
             </div>
           </div>

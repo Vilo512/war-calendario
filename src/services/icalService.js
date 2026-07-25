@@ -66,13 +66,21 @@ export const downloadICalFromBookings = (bookingsList = [], filename = "reservas
   const content = generateICalFromBookings(bookingsList);
   if (!content) return;
 
-  const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
-  const link = document.createElement('a');
-  link.href = window.URL.createObjectURL(blob);
-  link.setAttribute('download', filename);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+  if (isIOS) {
+    // En iOS (iPhone / Safari), la Data URI abre directamente la pantalla nativa de Apple Calendario
+    const dataUri = 'data:text/calendar;charset=utf8,' + encodeURIComponent(content);
+    window.location.href = dataUri;
+  } else {
+    const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = window.URL.createObjectURL(blob);
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
 };
 
 export const downloadICalFeed = async () => {
