@@ -32,9 +32,9 @@ export default function AttendeesModal({ isOpen, onClose, booking, user, onToggl
           <div>
             <h3 className="title" style={{ margin: 0, fontSize: '1.3rem' }}>{booking.name}</h3>
             <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.3rem', display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-              <span>🏛️ {booking.room}</span>
-              <span>📅 {booking.date}</span>
-              <span>⏰ {renderTimeRange()}</span>
+              <span>Sala: {booking.room}</span> |
+              <span>Fecha: {booking.date}</span> |
+              <span>Horario: {renderTimeRange()}</span>
             </div>
           </div>
           <button className="btn btn-secondary" style={{ padding: '0.2rem 0.6rem' }} onClick={onClose}>✕</button>
@@ -48,7 +48,7 @@ export default function AttendeesModal({ isOpen, onClose, booking, user, onToggl
         {/* Barra de progreso de aforo */}
         <div style={{ marginBottom: '1.2rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem', fontSize: '0.85rem' }}>
-            <span style={{ fontWeight: 'bold' }}>👥 Asistentes Confirmados</span>
+            <span style={{ fontWeight: 'bold' }}>Asistentes Confirmados</span>
             <span style={{ color: isFull ? 'var(--danger)' : 'var(--success)', fontWeight: 'bold' }}>
               {attendees.length}{maxCount ? ` / ${maxCount} plazas` : ' (Sin límite de plazas)'}
             </span>
@@ -80,7 +80,7 @@ export default function AttendeesModal({ isOpen, onClose, booking, user, onToggl
                 </div>
                 {att.uid === user?.uid && (
                   <span style={{ background: 'rgba(16, 185, 129, 0.2)', color: 'var(--success)', fontSize: '0.7rem', padding: '1px 6px', borderRadius: '4px', fontWeight: 'bold' }}>
-                    ¡Tú!
+                    Tú
                   </span>
                 )}
               </div>

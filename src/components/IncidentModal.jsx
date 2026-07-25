@@ -54,7 +54,7 @@ export default function IncidentModal({ isOpen, onClose, user, weekId, weekRange
       <div className="glass-panel" style={{ width: '100%', maxWidth: '480px', padding: '1.8rem', border: '1px solid var(--danger)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
           <h3 className="title" style={{ margin: 0, fontSize: '1.2rem', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span>⚠️</span> Reportar Incidencia de Limpieza
+            Reportar Incidencia de Limpieza
           </h3>
           <button className="btn btn-secondary" style={{ padding: '0.2rem 0.6rem' }} onClick={onClose}>✕</button>
         </div>

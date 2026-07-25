@@ -255,7 +255,7 @@ export default function CleaningCard({ user, userRole }) {
           {pendingIncomingSwaps.map(swap => (
             <div key={swap.id} style={{ background: 'rgba(245, 158, 11, 0.15)', border: '1px solid #f59e0b', borderRadius: '6px', padding: '0.8rem' }}>
               <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#f59e0b', marginBottom: '0.3rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <span>🔄</span> Solicitud de Cambio Recibida
+                Solicitud de Cambio Recibida
               </div>
               <p style={{ fontSize: '0.8rem', margin: '0 0 0.6rem 0', color: 'var(--text-primary)' }}>
                 <strong>{swap.requesterName}</strong> desea intercambiar su semana (<strong>{swap.requesterWeekRange}</strong>) por tu semana (<strong>{swap.targetWeekRange}</strong>).
@@ -279,7 +279,7 @@ export default function CleaningCard({ user, userRole }) {
           {pendingOutgoingSwaps.map(swap => (
             <div key={swap.id} style={{ background: 'rgba(99, 102, 241, 0.12)', border: '1px dashed var(--accent-primary)', borderRadius: '6px', padding: '0.6rem 0.8rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <span style={{ fontSize: '0.75rem', color: 'var(--accent-primary)', fontWeight: 'bold' }}>⏳ Solicitud Enviada a {swap.targetName}:</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--accent-primary)', fontWeight: 'bold' }}>Solicitud Enviada a {swap.targetName}:</span>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Cambiar {swap.requesterWeekRange} por {swap.targetWeekRange}</div>
               </div>
               <button className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.7rem' }} onClick={() => handleCancelSwap(swap.id)}>
@@ -305,13 +305,13 @@ export default function CleaningCard({ user, userRole }) {
               </strong>
               {isSwapTurn && (
                 <span style={{ background: 'rgba(245, 158, 11, 0.2)', color: '#f59e0b', fontSize: '0.7rem', padding: '1px 6px', borderRadius: '4px', border: '1px solid #f59e0b' }}>
-                  🔄 Cambio (Original: {originalAssigneeName})
+                  Cambio (Original: {originalAssigneeName})
                 </span>
               )}
             </div>
             {isMyTurn && !isCompleted && (
               <p style={{ color: 'var(--accent-secondary)', fontSize: '0.85rem', fontWeight: 'bold', margin: '0 0 0.5rem 0' }}>
-                👉 ¡Es tu turno de limpiar el local esta semana!
+                ¡Es tu turno de limpiar el local esta semana!
               </p>
             )}
             {userWeeksLeft !== null && !isMyTurn && (
@@ -354,7 +354,7 @@ export default function CleaningCard({ user, userRole }) {
             style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
             onClick={() => setIsSwapModalOpen(true)}
           >
-            <span>🔄</span> Cambiar Turno
+            Cambiar Turno
           </button>
         )}
         <button 
@@ -362,7 +362,7 @@ export default function CleaningCard({ user, userRole }) {
           style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontSize: '0.8rem', background: 'rgba(239, 68, 68, 0.15)', color: 'var(--danger)', border: '1px solid rgba(239, 68, 68, 0.3)', whiteSpace: 'nowrap' }}
           onClick={() => setIsIncidentModalOpen(true)}
         >
-          <span>⚠️</span> Reportar Incidencia
+          Reportar Incidencia
         </button>
       </div>
 

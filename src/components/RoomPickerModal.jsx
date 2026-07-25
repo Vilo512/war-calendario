@@ -4,8 +4,8 @@ export default function RoomPickerModal({ isOpen, onClose, rooms, selectedRoom, 
   if (!isOpen) return null;
 
   const allOptions = [
-    { id: 'ALL', name: 'Todas las salas', icon: '🏢' },
-    ...rooms.map(r => ({ id: r, name: r, icon: '🏛️' }))
+    { id: 'ALL', name: 'Todas las salas' },
+    ...rooms.map(r => ({ id: r, name: r }))
   ];
 
   return (
@@ -16,7 +16,7 @@ export default function RoomPickerModal({ isOpen, onClose, rooms, selectedRoom, 
         background: 'rgba(10, 10, 12, 0.88)',
         display: 'flex',
         justifyContent: 'center',
-        alignItems: 'flex-end', // En móvil se abre como Bottom Action Sheet
+        alignItems: 'flex-end',
         zIndex: 1200,
         padding: '0',
         animation: 'fadeIn 0.2s ease-out'
@@ -38,7 +38,6 @@ export default function RoomPickerModal({ isOpen, onClose, rooms, selectedRoom, 
         }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Tirador visual de Bottom Sheet */}
         <div style={{ width: '40px', height: '4px', background: 'rgba(255,255,255,0.2)', borderRadius: '2px', margin: '0 auto 1.2rem auto' }} />
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
@@ -53,7 +52,6 @@ export default function RoomPickerModal({ isOpen, onClose, rooms, selectedRoom, 
           <button className="btn btn-secondary" style={{ padding: '0.2rem 0.6rem', fontSize: '0.8rem' }} onClick={onClose}>✕</button>
         </div>
 
-        {/* Lista de opciones táctiles */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginBottom: '1.5rem' }}>
           {allOptions.map((opt) => {
             const isSelected = selectedRoom === opt.id;
@@ -68,7 +66,7 @@ export default function RoomPickerModal({ isOpen, onClose, rooms, selectedRoom, 
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  justify: 'space-between',
+                  justifyContent: 'space-between',
                   width: '100%',
                   padding: '0.9rem 1.2rem',
                   borderRadius: '10px',
@@ -82,10 +80,7 @@ export default function RoomPickerModal({ isOpen, onClose, rooms, selectedRoom, 
                   transition: 'all 0.15s ease'
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-                  <span style={{ fontSize: '1.2rem' }}>{opt.icon}</span>
-                  <span>{opt.name}</span>
-                </div>
+                <span>{opt.name}</span>
                 {isSelected && (
                   <span style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>✓</span>
                 )}

@@ -141,7 +141,7 @@ export default function SwapModal({ isOpen, onClose, user, members = [], startDa
       <div className="glass-panel" style={{ width: '100%', maxWidth: '500px', padding: '1.8rem', border: '1px solid var(--accent-primary)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
           <h3 className="title" style={{ margin: 0, fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span>🔄</span> Solicitar Cambio de Turno
+            Solicitar Cambio de Turno
           </h3>
           <button className="btn btn-secondary" style={{ padding: '0.2rem 0.6rem' }} onClick={onClose}>✕</button>
         </div>

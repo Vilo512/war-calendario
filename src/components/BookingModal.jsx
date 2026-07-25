@@ -252,7 +252,7 @@ export default function BookingModal({ isOpen, onClose, user, userRole, initialD
             {hasConflict && (
               <div style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid var(--danger)', borderRadius: '6px', padding: '0.8rem', marginBottom: '1rem' }}>
                 <div style={{ color: 'var(--danger)', fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <span>⚠️</span> Conflicto de Horario Detectado
+                  Conflicto de Horario Detectado
                 </div>
                 {conflicts.map(c => {
                   const rangeDisplay = c.startTime && c.endTime ? `${c.startTime} - ${c.endTime}` : (c.time || '');
@@ -267,7 +267,7 @@ export default function BookingModal({ isOpen, onClose, user, userRole, initialD
 
             {isTimeOrderInvalid && !hasConflict && (
               <div style={{ color: 'var(--danger)', fontSize: '0.85rem', marginBottom: '1rem', textAlign: 'center' }}>
-                ⚠️ La hora de fin debe ser posterior a la hora de inicio.
+                La hora de fin debe ser posterior a la hora de inicio.
               </div>
             )}
 

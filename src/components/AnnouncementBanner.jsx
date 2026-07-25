@@ -29,10 +29,7 @@ export default function AnnouncementBanner() {
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem', flexWrap: 'wrap', gap: '0.4rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span style={{ fontSize: '1.1rem' }}>{isUrgent ? '⚠️' : '📢'}</span>
-                <strong style={{ fontSize: '1.05rem', color: '#ffffff' }}>{item.title}</strong>
-              </div>
+              <strong style={{ fontSize: '1.05rem', color: '#ffffff' }}>{item.title}</strong>
               <span style={{ 
                 fontSize: '0.7rem', 
                 padding: '2px 8px', 

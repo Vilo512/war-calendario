@@ -169,7 +169,7 @@ export default function App() {
                   position: 'relative'
                 }}
               >
-                ⚙️ Admin Panel
+                Admin Panel
                 {openIncidentsCount > 0 && (
                   <span style={{ 
                     position: 'absolute', 

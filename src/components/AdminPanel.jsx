@@ -288,13 +288,13 @@ export default function AdminPanel({ isOpen, onClose, user }) {
                     : {})
             }
           >
-            ⚠️ Incidencias {incidents.filter(i => i.status === 'OPEN').length > 0 && `(${incidents.filter(i => i.status === 'OPEN').length})`}
+            Incidencias {incidents.filter(i => i.status === 'OPEN').length > 0 && `(${incidents.filter(i => i.status === 'OPEN').length})`}
           </button>
           <button 
             className={`toggle-btn ${activeTab === 'announcements' ? 'active' : ''}`}
             onClick={() => setActiveTab('announcements')}
           >
-            📢 Anuncios ({announcements.length})
+            Anuncios ({announcements.length})
           </button>
           <button 
             className={`toggle-btn ${activeTab === 'rooms' ? 'active' : ''}`}
@@ -529,7 +529,7 @@ export default function AdminPanel({ isOpen, onClose, user }) {
         {activeTab === 'announcements' && (
           <div>
             <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: 'var(--accent-primary)' }}>
-              📢 Tablero de Anuncios y Comunicados Oficiales
+              Tablero de Anuncios y Comunicados Oficiales
             </h3>
 
             {/* Formulario de publicación */}
@@ -571,8 +571,8 @@ export default function AdminPanel({ isOpen, onClose, user }) {
                     value={ancPriority}
                     onChange={(e) => setAncPriority(e.target.value)}
                   >
-                    <option value="NORMAL">📢 Normal (Comunicado)</option>
-                    <option value="URGENT">⚠️ Urgente (Aviso Oficial)</option>
+                    <option value="NORMAL">Normal (Comunicado)</option>
+                    <option value="URGENT">Urgente (Aviso Oficial)</option>
                   </select>
                 </div>
 
@@ -596,7 +596,7 @@ export default function AdminPanel({ isOpen, onClose, user }) {
                         <span style={{ fontWeight: 'bold', fontSize: '0.95rem' }}>{a.title}</span>
                         {a.priority === 'URGENT' && (
                           <span style={{ fontSize: '0.7rem', background: 'rgba(239, 68, 68, 0.2)', color: 'var(--danger)', border: '1px solid var(--danger)', padding: '1px 6px', borderRadius: '4px', fontWeight: 'bold' }}>
-                            ⚠️ Urgente
+                            Urgente
                           </span>
                         )}
                       </div>

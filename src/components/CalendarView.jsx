@@ -214,7 +214,7 @@ export default function CalendarView({ user, userRole, onOpenBooking }) {
         <div className="selected-day-details" style={{ marginTop: '2rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1.5rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem', flexWrap: 'wrap', gap: '0.8rem' }}>
             <h3 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span>🏛️</span> Ocupación de Salas: {selectedDate.getDate()} de {monthNames[selectedDate.getMonth()]}
+              Ocupación de Salas: {selectedDate.getDate()} de {monthNames[selectedDate.getMonth()]}
             </h3>
             <button 
               className="btn btn-secondary"
@@ -256,11 +256,11 @@ export default function CalendarView({ user, userRole, onOpenBooking }) {
                     </span>
                     {isOccupied ? (
                       <span style={{ fontSize: '0.75rem', background: 'rgba(239, 68, 68, 0.2)', color: 'var(--danger)', border: '1px solid var(--danger)', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold' }}>
-                        🔴 Ocupada ({roomBookings.length})
+                        OCUPADA ({roomBookings.length})
                       </span>
                     ) : (
                       <span style={{ fontSize: '0.75rem', background: 'rgba(16, 185, 129, 0.2)', color: 'var(--success)', border: '1px solid var(--success)', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold' }}>
-                        🟢 Libre
+                        LIBRE
                       </span>
                     )}
                   </div>
@@ -269,7 +269,7 @@ export default function CalendarView({ user, userRole, onOpenBooking }) {
                   {!isOccupied ? (
                     <div style={{ textAlign: 'center', padding: '1.2rem 0.5rem', background: 'rgba(16, 185, 129, 0.04)', borderRadius: '6px', border: '1px dashed rgba(16, 185, 129, 0.3)' }}>
                       <p style={{ color: 'var(--success)', fontSize: '0.85rem', fontWeight: '600', margin: '0 0 0.6rem 0' }}>
-                        🟢 Sala disponible todo el día
+                        Sala disponible todo el día
                       </p>
                       <button 
                         className="btn btn-secondary" 
@@ -298,7 +298,7 @@ export default function CalendarView({ user, userRole, onOpenBooking }) {
                               </div>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                                 <span className="booking-time" style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>
-                                  ⏰ {renderTimeRange(booking)}
+                                  {renderTimeRange(booking)}
                                 </span>
                                 {canDelete(booking) && (
                                   <button onClick={() => handleDelete(booking)} style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '0 2px', fontSize: '1.2rem', lineHeight: 1 }} title="Borrar Reserva">
@@ -314,7 +314,7 @@ export default function CalendarView({ user, userRole, onOpenBooking }) {
                                 onClick={() => setSelectedBookingForAttendees(booking)}
                                 title="Ver lista completa de asistentes"
                               >
-                                👥 {attendees.length}{maxCount ? `/${maxCount}` : ''} <span style={{ fontSize: '0.7rem', color: 'var(--accent-primary)' }}>🔍</span>
+                                Asistentes: {attendees.length}{maxCount ? `/${maxCount}` : ''}
                               </button>
 
                               {user && (
@@ -391,7 +391,7 @@ export default function CalendarView({ user, userRole, onOpenBooking }) {
                     return (
                       <div key={booking.id} className="booking-card-mini">
                         <div className="mini-time" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span>⏰ {renderTimeRange(booking)}</span>
+                          <span>{renderTimeRange(booking)}</span>
                           {canDelete(booking) && (
                             <button onClick={() => handleDelete(booking)} style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '0', fontSize: '1rem', lineHeight: '1' }} title="Borrar Reserva">×</button>
                           )}
@@ -405,7 +405,7 @@ export default function CalendarView({ user, userRole, onOpenBooking }) {
                               onClick={() => setSelectedBookingForAttendees(booking)}
                               title="Ver lista de asistentes"
                             >
-                              👥 {attendees.length}{maxCount ? `/${maxCount}` : ''}
+                              Asistentes: {attendees.length}{maxCount ? `/${maxCount}` : ''}
                             </button>
                             <button 
                               onClick={() => handleToggleAttendance(booking)}
@@ -461,9 +461,8 @@ export default function CalendarView({ user, userRole, onOpenBooking }) {
             }}
             onClick={() => setIsRoomPickerOpen(true)}
           >
-            <span>🏛️</span>
             <span>
-              {selectedRoomFilter === 'ALL' ? 'Todas las salas' : selectedRoomFilter}
+              Sala: {selectedRoomFilter === 'ALL' ? 'Todas las salas' : selectedRoomFilter}
             </span>
             <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>▾</span>
           </button>
