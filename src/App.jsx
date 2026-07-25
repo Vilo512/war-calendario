@@ -19,6 +19,12 @@ export default function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [openIncidentsCount, setOpenIncidentsCount] = useState(0);
+  const [bookingInitialData, setBookingInitialData] = useState({ date: '', room: '' });
+
+  const handleOpenBooking = (initialDate = '', initialRoom = '') => {
+    setBookingInitialData({ date: initialDate, room: initialRoom });
+    setIsModalOpen(true);
+  };
 
   useEffect(() => {
     let unsubProfile = null;
@@ -186,7 +192,7 @@ export default function App() {
               </button>
             )}
 
-            <button className="btn" onClick={() => setIsModalOpen(true)}>
+            <button className="btn" onClick={() => handleOpenBooking()}>
               <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '6px'}}>
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -201,24 +207,21 @@ export default function App() {
 
       <div className="grid-dashboard">
         <div>
-          <CalendarView user={user} userRole={userRole} />
+          <CalendarView user={user} userRole={userRole} onOpenBooking={handleOpenBooking} />
         </div>
         <div style={{display: 'flex', flexDirection: 'column', gap: '1.5rem'}}>
           <CleaningCard user={user} userRole={userRole} />
-          <div className="glass-panel">
-            <h3 style={{fontSize: '1.1rem', marginBottom: '0.5rem'}}>Estadísticas de Hoy</h3>
-            <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem'}}>
-              <span style={{color: 'var(--text-secondary)'}}>Ocupación</span>
-              <span style={{fontWeight: 'bold', color: 'var(--accent-primary)'}}>85%</span>
-            </div>
-            <div style={{background: 'rgba(255,255,255,0.1)', height: '8px', borderRadius: '4px', overflow: 'hidden'}}>
-              <div style={{background: 'var(--accent-primary)', width: '85%', height: '100%', borderRadius: '4px'}}></div>
-            </div>
-          </div>
         </div>
       </div>
 
-      <BookingModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} user={user} userRole={userRole} />
+      <BookingModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        user={user} 
+        userRole={userRole} 
+        initialDate={bookingInitialData.date}
+        initialRoom={bookingInitialData.room}
+      />
       
       {isAdminOpen && <AdminPanel isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} user={user} />}
     </div>

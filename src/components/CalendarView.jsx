@@ -1,30 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, query, orderBy, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
+import { isAdminRole } from '../utils/roleUtils';
 
-export default function CalendarView({ user }) {
+export default function CalendarView({ user, userRole, onOpenBooking }) {
   const [bookings, setBookings] = useState([]);
+  const [roomsList, setRoomsList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('month'); // 'month' or 'week'
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState(new Date()); // For month view details
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedRoomFilter, setSelectedRoomFilter] = useState('ALL'); // 'ALL' or specific room name
 
+  const defaultRooms = ['Estudio A', 'Estudio B', 'Sala Conferencias'];
+
+  // Cargar salas dinámicas de Firestore
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'rooms'), (snapshot) => {
+      const rList = [];
+      snapshot.forEach(d => rList.push(d.data().name));
+      setRoomsList(rList.length > 0 ? rList : defaultRooms);
+    });
+    return () => unsub();
+  }, []);
+
+  // Cargar reservas
   useEffect(() => {
     try {
-      const q = query(collection(db, 'bookings'), orderBy('time', 'asc'));
+      const q = query(collection(db, 'bookings'), orderBy('date', 'asc'));
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        
-        if (data.length === 0) {
-          // Dummy data for visual check if empty
-          const today = new Date().toISOString().split('T')[0];
-          setBookings([
-            { id: '1', name: 'Sesión de Retrato', room: 'Estudio A', date: today, time: '10:00' },
-            { id: '2', name: 'Grabación Podcast', room: 'Estudio B', date: today, time: '14:30' },
-          ]);
-        } else {
-          setBookings(data);
-        }
+        setBookings(data);
         setLoading(false);
       }, (error) => {
         console.error("Firestore Error:", error);
@@ -37,6 +43,8 @@ export default function CalendarView({ user }) {
       setLoading(false);
     }
   }, []);
+
+  const availableRooms = roomsList.length > 0 ? roomsList : defaultRooms;
 
   const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
   const getFirstDayOfMonth = (year, month) => {
@@ -67,17 +75,14 @@ export default function CalendarView({ user }) {
     const firstDay = getFirstDayOfMonth(year, month);
     
     const days = [];
-    // Padding previous month
     const prevMonthDays = getDaysInMonth(year, month - 1);
     for (let i = firstDay - 1; i >= 0; i--) {
       days.push({ day: prevMonthDays - i, isCurrentMonth: false, date: new Date(year, month - 1, prevMonthDays - i) });
     }
-    // Current month
     for (let i = 1; i <= daysInMonth; i++) {
       days.push({ day: i, isCurrentMonth: true, date: new Date(year, month, i) });
     }
-    // Padding next month
-    const remainingDays = 42 - days.length; // 6 rows * 7 days
+    const remainingDays = 42 - days.length;
     for (let i = 1; i <= remainingDays; i++) {
       days.push({ day: i, isCurrentMonth: false, date: new Date(year, month + 1, i) });
     }
@@ -86,7 +91,7 @@ export default function CalendarView({ user }) {
 
   const getWeekDays = () => {
     const day = currentDate.getDay();
-    const diff = currentDate.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+    const diff = currentDate.getDate() - day + (day === 0 ? -6 : 1);
     const monday = new Date(currentDate.setDate(diff));
     
     const week = [];
@@ -113,7 +118,7 @@ export default function CalendarView({ user }) {
   const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
   const dayNames = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
-  const isAdmin = user && user.email === 'admin@warcalendario.com';
+  const isAdmin = isAdminRole(userRole);
   const canDelete = (booking) => isAdmin || (user && booking.userId === user.uid);
 
   const handleDelete = async (booking) => {
@@ -158,10 +163,19 @@ export default function CalendarView({ user }) {
     }
   };
 
+  // Helper para mostrar rango horario de la reserva
+  const renderTimeRange = (booking) => {
+    if (booking.startTime && booking.endTime) {
+      return `${booking.startTime} - ${booking.endTime}`;
+    }
+    return booking.time || 'Horario no especificado';
+  };
+
   const renderMonthView = () => {
     const days = getMonthDays();
     const todayStr = formatDateString(new Date());
     const selectedStr = formatDateString(selectedDate);
+    const dayBookings = getBookingsForDate(selectedDate);
 
     return (
       <div className="calendar-container">
@@ -171,7 +185,8 @@ export default function CalendarView({ user }) {
         <div className="calendar-month-grid">
           {days.map((d, i) => {
             const dateStr = formatDateString(d.date);
-            const hasBookings = getBookingsForDate(d.date).length > 0;
+            const dateBookings = getBookingsForDate(d.date);
+            const hasBookings = dateBookings.length > 0;
             const isToday = dateStr === todayStr;
             const isSelected = dateStr === selectedStr;
 
@@ -191,81 +206,142 @@ export default function CalendarView({ user }) {
           })}
         </div>
         
-        {/* Detail section for selected day */}
-        <div className="selected-day-details">
-          <h3 style={{margin: '1rem 0', fontSize: '1.2rem', color: 'var(--accent-primary)'}}>
-            Reservas para el {selectedDate.getDate()} de {monthNames[selectedDate.getMonth()]}
-          </h3>
-          <div className="calendar-grid">
-            {getBookingsForDate(selectedDate).length === 0 ? (
-              <p style={{color: 'var(--text-secondary)'}}>No hay reservas en este día.</p>
-            ) : (
-              getBookingsForDate(selectedDate).map((booking) => {
-                const attendees = booking.attendees || [];
-                const isAttending = user && attendees.some(a => a.uid === user.uid);
-                const maxCount = booking.maxAttendees || null;
-                const isFull = maxCount && attendees.length >= maxCount;
+        {/* Sección de Ocupación por Columnas de Salas para el día seleccionado */}
+        <div className="selected-day-details" style={{ marginTop: '2rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem', flexWrap: 'wrap', gap: '0.8rem' }}>
+            <h3 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span>🏛️</span> Ocupación de Salas: {selectedDate.getDate()} de {monthNames[selectedDate.getMonth()]}
+            </h3>
+            <button 
+              className="btn btn-secondary"
+              style={{ fontSize: '0.8rem', padding: '0.3rem 0.8rem' }}
+              onClick={() => onOpenBooking && onOpenBooking(selectedStr, availableRooms[0])}
+            >
+              + Nueva Reserva Este Día
+            </button>
+          </div>
 
-                return (
-                  <div key={booking.id} className="booking-item" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.6rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div className="booking-details">
-                        <span className="booking-name">{booking.name}</span>
-                        <span className="booking-room">
-                          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{verticalAlign: 'middle', marginRight: '4px', display: 'inline-block'}}>
-                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                            <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                          </svg>
-                          {booking.room}
-                        </span>
-                      </div>
-                      <div className="booking-time" style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
-                        {booking.time}
-                        {canDelete(booking) && (
-                          <button onClick={() => handleDelete(booking)} style={{background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '2px', fontSize: '1.2rem'}} title="Borrar Reserva">
-                            ×
-                          </button>
-                        )}
-                      </div>
-                    </div>
+          {/* Grid de Columnas por Sala (2 o 3 columnas) */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: `repeat(auto-fit, minmax(${availableRooms.length > 2 ? '240px' : '280px'}, 1fr))`,
+            gap: '1rem',
+            alignItems: 'start'
+          }}>
+            {availableRooms.map((roomName) => {
+              const roomBookings = dayBookings.filter(b => b.room === roomName);
+              const isOccupied = roomBookings.length > 0;
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.08)', fontSize: '0.85rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                        <span style={{ color: 'var(--text-secondary)' }}>
-                          👥 Asistentes ({attendees.length}{maxCount ? `/${maxCount}` : ''}):
-                        </span>
-                        {attendees.length === 0 ? (
-                          <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.8rem' }}>Nadie apuntado aún</span>
-                        ) : (
-                          attendees.map(a => (
-                            <span key={a.uid} style={{ background: 'rgba(255,255,255,0.1)', color: 'white', padding: '1px 6px', borderRadius: '4px', fontSize: '0.75rem' }}>
-                              {a.name}
-                            </span>
-                          ))
-                        )}
-                      </div>
-
-                      {user && (
-                        <button 
-                          onClick={() => handleToggleAttendance(booking)} 
-                          disabled={!isAttending && isFull}
-                          className={isAttending ? "btn btn-secondary" : "btn"}
-                          style={{ 
-                            padding: '0.2rem 0.6rem', 
-                            fontSize: '0.75rem', 
-                            whitespace: 'nowrap',
-                            opacity: (!isAttending && isFull) ? 0.6 : 1,
-                            cursor: (!isAttending && isFull) ? 'not-allowed' : 'pointer'
-                          }}
-                        >
-                          {isAttending ? '✓ Me apunté' : (isFull ? 'Completo (Lleno)' : '+ Apuntarme')}
-                        </button>
-                      )}
-                    </div>
+              return (
+                <div 
+                  key={roomName} 
+                  style={{
+                    background: '#141417',
+                    border: '1px solid var(--border-strong)',
+                    borderRadius: '8px',
+                    padding: '1rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.8rem'
+                  }}
+                >
+                  {/* Encabezado de la columna de sala con distintivo Ocupada / Libre */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '0.6rem' }}>
+                    <span style={{ fontWeight: 'bold', fontSize: '1.05rem', color: '#ffffff' }}>
+                      {roomName}
+                    </span>
+                    {isOccupied ? (
+                      <span style={{ fontSize: '0.75rem', background: 'rgba(239, 68, 68, 0.2)', color: 'var(--danger)', border: '1px solid var(--danger)', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold' }}>
+                        🔴 Ocupada ({roomBookings.length})
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: '0.75rem', background: 'rgba(16, 185, 129, 0.2)', color: 'var(--success)', border: '1px solid var(--success)', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold' }}>
+                        🟢 Libre
+                      </span>
+                    )}
                   </div>
-                );
-              })
-            )}
+
+                  {/* Contenido de reservas o estado Libre */}
+                  {!isOccupied ? (
+                    <div style={{ textAlign: 'center', padding: '1.2rem 0.5rem', background: 'rgba(16, 185, 129, 0.04)', borderRadius: '6px', border: '1px dashed rgba(16, 185, 129, 0.3)' }}>
+                      <p style={{ color: 'var(--success)', fontSize: '0.85rem', fontWeight: '600', margin: '0 0 0.6rem 0' }}>
+                        🟢 Sala disponible todo el día
+                      </p>
+                      <button 
+                        className="btn btn-secondary" 
+                        style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem', width: '100%' }}
+                        onClick={() => onOpenBooking && onOpenBooking(selectedStr, roomName)}
+                      >
+                        + Reservar en {roomName}
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                      {roomBookings.map((booking) => {
+                        const attendees = booking.attendees || [];
+                        const isAttending = user && attendees.some(a => a.uid === user.uid);
+                        const maxCount = booking.maxAttendees || null;
+                        const isFull = maxCount && attendees.length >= maxCount;
+
+                        return (
+                          <div key={booking.id} className="booking-item" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.5rem', padding: '0.8rem', background: 'rgba(255,255,255,0.03)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                              <div>
+                                <div style={{ fontWeight: 'bold', fontSize: '0.95rem' }}>{booking.name}</div>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                  Por: {booking.userName || booking.userEmail || 'Socio'}
+                                </div>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                <span className="booking-time" style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>
+                                  ⏰ {renderTimeRange(booking)}
+                                </span>
+                                {canDelete(booking) && (
+                                  <button onClick={() => handleDelete(booking)} style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '0 2px', fontSize: '1.2rem', lineHeight: 1 }} title="Borrar Reserva">
+                                    ×
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.4rem', borderTop: '1px solid rgba(255,255,255,0.08)', fontSize: '0.8rem' }}>
+                              <span style={{ color: 'var(--text-secondary)' }}>
+                                👥 {attendees.length}{maxCount ? `/${maxCount}` : ''}
+                              </span>
+
+                              {user && (
+                                <button 
+                                  onClick={() => handleToggleAttendance(booking)} 
+                                  disabled={!isAttending && isFull}
+                                  className={isAttending ? "btn btn-secondary" : "btn"}
+                                  style={{ 
+                                    padding: '0.2rem 0.5rem', 
+                                    fontSize: '0.7rem', 
+                                    whitespace: 'nowrap',
+                                    opacity: (!isAttending && isFull) ? 0.6 : 1,
+                                    cursor: (!isAttending && isFull) ? 'not-allowed' : 'pointer'
+                                  }}
+                                >
+                                  {isAttending ? '✓ Me apunté' : (isFull ? 'Lleno' : '+ Apuntarme')}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      <button 
+                        className="btn btn-secondary" 
+                        style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem', marginTop: '0.2rem' }}
+                        onClick={() => onOpenBooking && onOpenBooking(selectedStr, roomName)}
+                      >
+                        + Reservar en {roomName}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -280,7 +356,12 @@ export default function CalendarView({ user }) {
       <div className="calendar-week-container">
         {weekDays.map((d, i) => {
           const dateStr = formatDateString(d);
-          const dayBookings = getBookingsForDate(d);
+          let dayBookings = getBookingsForDate(d);
+
+          if (selectedRoomFilter !== 'ALL') {
+            dayBookings = dayBookings.filter(b => b.room === selectedRoomFilter);
+          }
+
           const isToday = dateStr === todayStr;
 
           return (
@@ -301,14 +382,14 @@ export default function CalendarView({ user }) {
 
                     return (
                       <div key={booking.id} className="booking-card-mini">
-                        <div className="mini-time" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                          {booking.time}
+                        <div className="mini-time" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span>⏰ {renderTimeRange(booking)}</span>
                           {canDelete(booking) && (
-                            <button onClick={() => handleDelete(booking)} style={{background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '0', fontSize: '1rem', lineHeight: '1'}} title="Borrar Reserva">×</button>
+                            <button onClick={() => handleDelete(booking)} style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '0', fontSize: '1rem', lineHeight: '1' }} title="Borrar Reserva">×</button>
                           )}
                         </div>
                         <div className="mini-name">{booking.name}</div>
-                        <div className="mini-room">{booking.room}</div>
+                        <div className="mini-room" style={{ color: 'var(--accent-primary)', fontWeight: 'bold' }}>{booking.room}</div>
                         {user && (
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.4rem', paddingTop: '0.3rem', borderTop: '1px solid rgba(255,255,255,0.08)', fontSize: '0.75rem' }}>
                             <span style={{ color: 'var(--text-secondary)' }}>👥 {attendees.length}{maxCount ? `/${maxCount}` : ''}</span>
@@ -346,10 +427,25 @@ export default function CalendarView({ user }) {
     : `Semana del ${getWeekDays()[0].getDate()} de ${monthNames[getWeekDays()[0].getMonth()]}`;
 
   return (
-    <div className="glass-panel" style={{display: 'flex', flexDirection: 'column'}}>
+    <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column' }}>
       <div className="header calendar-main-header">
-        <h2 className="title" style={{margin: 0}}>{headerText}</h2>
-        <div className="calendar-controls">
+        <h2 className="title" style={{ margin: 0 }}>{headerText}</h2>
+        
+        <div className="calendar-controls" style={{ flexWrap: 'wrap', gap: '0.6rem' }}>
+          {/* Selector de filtro por Sala */}
+          <select 
+            className="form-input"
+            style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', width: 'auto' }}
+            value={selectedRoomFilter}
+            onChange={(e) => setSelectedRoomFilter(e.target.value)}
+          >
+            <option value="ALL">Todas las salas</option>
+            {availableRooms.map(r => (
+              <option key={r} value={r}>{r}</option>
+            ))}
+          </select>
+
+          {/* Selector de vista Mes / Semana */}
           <div className="view-toggles">
             <button 
               className={`toggle-btn ${viewMode === 'month' ? 'active' : ''}`}
@@ -360,6 +456,7 @@ export default function CalendarView({ user }) {
               onClick={() => setViewMode('week')}
             >Semana</button>
           </div>
+
           <div className="nav-arrows">
             <button className="nav-btn" onClick={prevPeriod}>&lt;</button>
             <button className="nav-btn" onClick={nextPeriod}>&gt;</button>
@@ -368,7 +465,7 @@ export default function CalendarView({ user }) {
       </div>
       
       {loading ? (
-        <div style={{textAlign: 'center', padding: '2rem'}}>Cargando...</div>
+        <div style={{ textAlign: 'center', padding: '2rem' }}>Cargando...</div>
       ) : (
         viewMode === 'month' ? renderMonthView() : renderWeekView()
       )}
