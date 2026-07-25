@@ -459,38 +459,80 @@ body {
   transform: translateX(-50%);
 }
 
+/* Responsive Calendar Week View */
 .calendar-week-container {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 0.5rem;
-  min-height: 400px;
+  display: flex;
   overflow-x: auto;
+  gap: 0.6rem;
+  padding-bottom: 0.75rem;
+  min-height: 380px;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
 }
+
+@media (min-width: 992px) {
+  .calendar-week-container {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    overflow-x: visible;
+  }
+}
+
 .week-day-column {
   display: flex;
   flex-direction: column;
-  background: rgba(0,0,0,0.2);
-  border-radius: 8px;
-  min-width: 120px;
+  background: #161619;
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  flex: 0 0 160px;
+  min-width: 160px;
+  scroll-snap-align: start;
 }
+
+@media (min-width: 992px) {
+  .week-day-column {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.week-day-column.today-column {
+  border-color: #ffffff;
+  background: #1c1c21;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.1);
+}
+
 .week-day-header {
-  padding: 0.75rem 0;
+  padding: 0.75rem 0.5rem;
   text-align: center;
   border-bottom: 1px solid var(--border-light);
   display: flex;
   flex-direction: column;
+  gap: 2px;
+  background: #111114;
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
 }
+
 .week-day-name {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--text-secondary);
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.05em;
 }
+
 .week-day-number {
-  font-size: 1.2rem;
-  font-weight: 600;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #ffffff;
 }
+
 .week-day-number.today-number {
-  color: var(--accent-secondary);
+  color: #ffffff;
+  font-family: var(--font-stencil);
 }
+
 .week-day-content {
   padding: 0.5rem;
   display: flex;
@@ -498,30 +540,39 @@ body {
   gap: 0.5rem;
   flex: 1;
 }
+
 .booking-card-mini {
-  background: rgba(139, 92, 246, 0.2);
-  border-left: 3px solid var(--accent-primary);
+  background: #1c1c20;
+  border: 1px solid var(--border-strong);
+  border-left: 3px solid #ffffff;
   padding: 0.5rem;
   border-radius: 4px;
   font-size: 0.8rem;
 }
+
 .mini-time {
-  font-weight: 700;
-  color: var(--accent-primary);
+  font-weight: 800;
+  color: #ffffff;
 }
+
 .mini-name {
-  font-weight: 500;
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: #f4f4f5;
+  margin: 2px 0;
 }
+
 .mini-room {
   color: var(--text-secondary);
-  font-size: 0.7rem;
+  font-size: 0.72rem;
 }
+
 .empty-day-slot {
   color: var(--text-secondary);
   text-align: center;
-  opacity: 0.5;
+  opacity: 0.4;
   margin-top: 1rem;
+  font-size: 0.9rem;
 }
