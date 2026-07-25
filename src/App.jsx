@@ -9,6 +9,7 @@ import CalendarSync from './components/CalendarSync';
 import Login from './components/Login';
 import AdminPanel from './components/AdminPanel';
 import { getRoleLabel, isAdminRole, ROLES } from './utils/roleUtils';
+import { subscribeOpenIncidents } from './services/cleaningIncidentService';
 import './index.css';
 
 export default function App() {
@@ -17,6 +18,7 @@ export default function App() {
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [openIncidentsCount, setOpenIncidentsCount] = useState(0);
 
   useEffect(() => {
     let unsubProfile = null;
@@ -64,6 +66,14 @@ export default function App() {
       unsubscribeAuth();
       if (unsubProfile) unsubProfile();
     };
+  }, []);
+
+  // Escuchar incidencias abiertas para la insignia de Admin
+  useEffect(() => {
+    const unsub = subscribeOpenIncidents((list) => {
+      setOpenIncidentsCount(list.length);
+    });
+    return () => unsub();
   }, []);
 
   if (loadingAuth) {
@@ -144,8 +154,35 @@ export default function App() {
 
           <div className="header-actions">
             {isAdmin && (
-              <button className="btn btn-secondary" onClick={() => setIsAdminOpen(true)} style={{ borderColor: 'var(--accent-primary)' }}>
+              <button 
+                className="btn btn-secondary" 
+                onClick={() => setIsAdminOpen(true)} 
+                style={{ 
+                  borderColor: openIncidentsCount > 0 ? 'var(--danger)' : 'var(--accent-primary)',
+                  position: 'relative'
+                }}
+              >
                 ⚙️ Admin Panel
+                {openIncidentsCount > 0 && (
+                  <span style={{ 
+                    position: 'absolute', 
+                    top: '-6px', 
+                    right: '-6px', 
+                    background: 'var(--danger)', 
+                    color: 'white', 
+                    borderRadius: '50%', 
+                    width: '18px', 
+                    height: '18px', 
+                    fontSize: '0.7rem', 
+                    fontWeight: 'bold', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    boxShadow: '0 0 8px rgba(239, 68, 68, 0.8)'
+                  }}>
+                    {openIncidentsCount}
+                  </span>
+                )}
               </button>
             )}
 

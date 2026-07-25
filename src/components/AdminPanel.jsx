@@ -3,13 +3,20 @@ import { collection, onSnapshot, doc, updateDoc, setDoc, deleteDoc, getDoc } fro
 import { db } from '../firebase/config';
 import { ROLES, ROLE_LABELS, normalizeRole, isCleaningMember } from '../utils/roleUtils';
 import { subscribeAllWeeks, resetWeekOverride } from '../services/cleaningSwapService';
+import { 
+  subscribeAllIncidents, 
+  resolveIncident, 
+  dismissIncident, 
+  INCIDENT_TYPES 
+} from '../services/cleaningIncidentService';
 
 export default function AdminPanel({ isOpen, onClose, user }) {
   const [users, setUsers] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [cleaningMembers, setCleaningMembers] = useState([]);
   const [weeksMap, setWeeksMap] = useState({});
-  const [activeTab, setActiveTab] = useState('users'); // 'users', 'cleaning', 'rooms'
+  const [incidents, setIncidents] = useState([]);
+  const [activeTab, setActiveTab] = useState('users'); // 'users', 'cleaning', 'incidents', 'rooms'
 
   const [selectedUserToAdd, setSelectedUserToAdd] = useState('');
   const [manualMemberName, setManualMemberName] = useState('');
@@ -56,6 +63,15 @@ export default function AdminPanel({ isOpen, onClose, user }) {
     if (!isOpen) return;
     const unsub = subscribeAllWeeks((map) => {
       setWeeksMap(map);
+    });
+    return () => unsub();
+  }, [isOpen]);
+
+  // Escuchar incidencias de limpieza
+  useEffect(() => {
+    if (!isOpen) return;
+    const unsub = subscribeAllIncidents((list) => {
+      setIncidents(list);
     });
     return () => unsub();
   }, [isOpen]);
@@ -209,6 +225,17 @@ export default function AdminPanel({ isOpen, onClose, user }) {
             Cuadrante Limpieza ({cleaningMembers.length})
           </button>
           <button 
+            className={`toggle-btn ${activeTab === 'incidents' ? 'active' : ''}`}
+            onClick={() => setActiveTab('incidents')}
+            style={{ 
+              position: 'relative',
+              borderColor: incidents.filter(i => i.status === 'OPEN').length > 0 ? 'var(--danger)' : undefined,
+              color: incidents.filter(i => i.status === 'OPEN').length > 0 ? 'var(--danger)' : undefined
+            }}
+          >
+            ⚠️ Incidencias {incidents.filter(i => i.status === 'OPEN').length > 0 && `(${incidents.filter(i => i.status === 'OPEN').length})`}
+          </button>
+          <button 
             className={`toggle-btn ${activeTab === 'rooms' ? 'active' : ''}`}
             onClick={() => setActiveTab('rooms')}
           >
@@ -342,6 +369,98 @@ export default function AdminPanel({ isOpen, onClose, user }) {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Tab Incidencias */}
+        {activeTab === 'incidents' && (
+          <div>
+            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: 'var(--danger)' }}>
+              ⚠️ Registro de Incidencias de Limpieza
+            </h3>
+
+            {incidents.length === 0 ? (
+              <p style={{ color: 'var(--text-secondary)' }}>No hay ninguna incidencia de limpieza registrada.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                {incidents.map(inc => (
+                  <div 
+                    key={inc.id} 
+                    className="booking-item" 
+                    style={{ 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      gap: '0.5rem',
+                      borderLeft: inc.status === 'OPEN' ? '4px solid var(--danger)' : '4px solid var(--text-secondary)',
+                      background: inc.status === 'OPEN' ? 'rgba(239, 68, 68, 0.06)' : undefined
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ fontWeight: 'bold', fontSize: '0.95rem' }}>
+                        {INCIDENT_TYPES[inc.type] || inc.type}
+                      </div>
+                      <div>
+                        {inc.status === 'OPEN' ? (
+                          <span style={{ fontSize: '0.75rem', background: 'rgba(239, 68, 68, 0.2)', color: 'var(--danger)', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold' }}>
+                            Abierta / Pendiente
+                          </span>
+                        ) : inc.status === 'RESOLVED' ? (
+                          <span style={{ fontSize: '0.75rem', background: 'rgba(16, 185, 129, 0.2)', color: 'var(--success)', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold' }}>
+                            ✓ Resuelta
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '0.75rem', background: 'rgba(255, 255, 255, 0.1)', color: 'var(--text-secondary)', padding: '2px 8px', borderRadius: '12px' }}>
+                            Descartada
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                      <span>Semana: <strong>{inc.weekRange || inc.weekId}</strong></span> | 
+                      <span style={{ marginLeft: '6px' }}>Asignado: <strong style={{ color: 'var(--accent-primary)' }}>{inc.assignedMemberName}</strong></span>
+                    </div>
+
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                      Reportado por: <strong>{inc.reporterName}</strong>
+                    </div>
+
+                    {inc.description && (
+                      <div style={{ background: 'rgba(0,0,0,0.3)', padding: '0.5rem', borderRadius: '4px', fontSize: '0.85rem', fontStyle: 'italic' }}>
+                        "{inc.description}"
+                      </div>
+                    )}
+
+                    {inc.status === 'OPEN' && (
+                      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.3rem', justifyContent: 'flex-end' }}>
+                        <button 
+                          className="btn btn-secondary" 
+                          style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', background: 'rgba(239, 68, 68, 0.2)', color: 'var(--danger)' }}
+                          onClick={async () => {
+                            await dismissIncident(inc.id);
+                            setMsg('Incidencia descartada.');
+                            setTimeout(() => setMsg(''), 3000);
+                          }}
+                        >
+                          Descartar
+                        </button>
+                        <button 
+                          className="btn btn-success" 
+                          style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}
+                          onClick={async () => {
+                            await resolveIncident(inc.id);
+                            setMsg('Incidencia marcada como resuelta.');
+                            setTimeout(() => setMsg(''), 3000);
+                          }}
+                        >
+                          ✓ Resolver Incidencia
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

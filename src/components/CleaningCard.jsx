@@ -11,6 +11,7 @@ import {
   cancelSwapRequest 
 } from '../services/cleaningSwapService';
 import SwapModal from './SwapModal';
+import IncidentModal from './IncidentModal';
 
 export default function CleaningCard({ user, userRole }) {
   const [config, setConfig] = useState(null);
@@ -20,6 +21,7 @@ export default function CleaningCard({ user, userRole }) {
   const [loading, setLoading] = useState(true);
   const [showScheduleDropdown, setShowScheduleDropdown] = useState(false);
   const [isSwapModalOpen, setIsSwapModalOpen] = useState(false);
+  const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
   const [actionMsg, setActionMsg] = useState('');
 
   const weekId = getWeekId();
@@ -344,16 +346,25 @@ export default function CleaningCard({ user, userRole }) {
         )
       )}
 
-      {/* Botón para abrir modal de permutas */}
-      {members.length > 1 && (
+      {/* Botones de acción secundaria (Permuta / Incidencia) */}
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.8rem', flexWrap: 'wrap' }}>
+        {members.length > 1 && (
+          <button 
+            className="btn btn-secondary" 
+            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
+            onClick={() => setIsSwapModalOpen(true)}
+          >
+            <span>🔄</span> Permutar Turno
+          </button>
+        )}
         <button 
           className="btn btn-secondary" 
-          style={{ width: '100%', marginBottom: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
-          onClick={() => setIsSwapModalOpen(true)}
+          style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontSize: '0.8rem', background: 'rgba(239, 68, 68, 0.15)', color: 'var(--danger)', border: '1px solid rgba(239, 68, 68, 0.3)', whiteSpace: 'nowrap' }}
+          onClick={() => setIsIncidentModalOpen(true)}
         >
-          <span>🔄</span> Solicitar Permuta de Semana
+          <span>⚠️</span> Reportar Incidencia
         </button>
-      )}
+      </div>
 
       {/* Desplegable de turnos futuros */}
       {members.length > 0 && (
@@ -417,7 +428,7 @@ export default function CleaningCard({ user, userRole }) {
         </div>
       )}
 
-      {/* Modal de Permutas */}
+      {/* Modales */}
       <SwapModal 
         isOpen={isSwapModalOpen}
         onClose={() => setIsSwapModalOpen(false)}
@@ -425,6 +436,15 @@ export default function CleaningCard({ user, userRole }) {
         members={members}
         startDate={startDate}
         weeksMap={weeksMap}
+      />
+
+      <IncidentModal
+        isOpen={isIncidentModalOpen}
+        onClose={() => setIsIncidentModalOpen(false)}
+        user={user}
+        weekId={weekId}
+        weekRange={weekRange}
+        assignedMemberName={assignee ? assignee.name : 'Sin asignar'}
       />
     </div>
   );

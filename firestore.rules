@@ -47,6 +47,14 @@ service cloud.firestore {
       allow delete: if request.auth != null && (resource.data.requesterId == request.auth.uid || isAdmin());
     }
 
+    // Colección de Incidencias de Limpieza
+    match /cleaning_incidents/{incidentId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.reporterId == request.auth.uid;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
     match /{document=**} {
       allow read: if request.auth != null;
       allow write: if isAdmin();
