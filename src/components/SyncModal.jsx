@@ -14,6 +14,8 @@ export default function SyncModal({ isOpen, onClose, visibleBookings = [], selec
     ? 'https://geticalfeed-216846008793-uc.a.run.app'
     : `https://geticalfeed-216846008793-uc.a.run.app?room=${encodeURIComponent(selectedRoomFilter)}`;
 
+  const webcalUrl = feedUrl.replace(/^https:\/\//, 'webcal://');
+
   const handleDownloadIcs = () => {
     const filename = `reservas_${roomLabel.toLowerCase().replace(/\s+/g, '_')}.ics`;
     downloadICalFromBookings(visibleBookings, filename);
@@ -21,8 +23,8 @@ export default function SyncModal({ isOpen, onClose, visibleBookings = [], selec
     setTimeout(() => setDownloaded(false), 3000);
   };
 
-  const handleCopyFeed = () => {
-    navigator.clipboard.writeText(feedUrl);
+  const handleCopyFeed = (urlToCopy) => {
+    navigator.clipboard.writeText(urlToCopy);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -41,7 +43,7 @@ export default function SyncModal({ isOpen, onClose, visibleBookings = [], selec
       zIndex: 1100,
       padding: '1rem'
     }}>
-      <div className="glass-panel" style={{ width: '100%', maxWidth: '520px', padding: '1.8rem', borderRadius: '12px' }}>
+      <div className="glass-panel" style={{ width: '100%', maxWidth: '540px', padding: '1.8rem', borderRadius: '12px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
           <h3 className="title" style={{ margin: 0, fontSize: '1.3rem' }}>Sincronizar Calendario</h3>
           <button 
@@ -55,7 +57,7 @@ export default function SyncModal({ isOpen, onClose, visibleBookings = [], selec
         </div>
 
         {/* Resumen del filtro activo */}
-        <div style={{ background: 'rgba(255,255,255,0.04)', padding: '0.9rem', borderRadius: '8px', marginBottom: '1.2rem', border: '1px solid var(--border-light)', fontSize: '0.85rem' }}>
+        <div style={{ background: 'rgba(255,255,255,0.04)', padding: '0.9rem', borderRadius: '8px', marginBottom: '1rem', border: '1px solid var(--border-light)', fontSize: '0.85rem' }}>
           <div style={{ fontWeight: 'bold', color: 'var(--accent-primary)', marginBottom: '0.3rem' }}>
             Filtro Activo: {viewLabel} ({roomLabel})
           </div>
@@ -65,21 +67,47 @@ export default function SyncModal({ isOpen, onClose, visibleBookings = [], selec
         </div>
 
         {/* Opciones de exportación / compatibilidad */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', marginBottom: '1.5rem' }}>
-          {/* Opción Apple Calendar / iPhone / Outlook */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', marginBottom: '1.2rem' }}>
+          {/* Opción Webcal Directa para Outlook y Apple */}
           <div style={{ background: '#18181b', padding: '0.9rem', borderRadius: '8px', border: '1px solid var(--border-strong)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
               <div>
-                <div style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>iPhone / Apple / Outlook (.ics)</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Añade directamente los eventos a tu aplicación nativa</div>
+                <div style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>Outlook / Apple (Protocolo webcal://)</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Abre la suscripción en vivo en tu app de escritorio</div>
+              </div>
+              <div style={{ display: 'flex', gap: '0.4rem' }}>
+                <button 
+                  className="btn" 
+                  style={{ fontSize: '0.78rem', padding: '0.35rem 0.7rem' }}
+                  onClick={() => window.open(webcalUrl, '_self')}
+                >
+                  Abrir webcal://
+                </button>
+                <button 
+                  className="btn btn-secondary" 
+                  style={{ fontSize: '0.78rem', padding: '0.35rem 0.7rem' }}
+                  onClick={() => handleCopyFeed(webcalUrl)}
+                >
+                  {copied ? '✓ Copiado' : 'Copiar webcal'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Opción Descarga .ics */}
+          <div style={{ background: '#18181b', padding: '0.9rem', borderRadius: '8px', border: '1px solid var(--border-strong)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div>
+                <div style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>Archivo .ics (iPhone / Dispositivos Moviles)</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Descarga los eventos visibles para abrirlos localmente</div>
               </div>
               <button 
-                className="btn" 
-                style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}
+                className="btn btn-secondary" 
+                style={{ fontSize: '0.78rem', padding: '0.35rem 0.7rem' }}
                 onClick={handleDownloadIcs}
                 disabled={visibleBookings.length === 0}
               >
-                {downloaded ? '✓ Exportado' : 'Añadir / Descargar .ics'}
+                {downloaded ? '✓ Exportado' : 'Descargar .ics'}
               </button>
             </div>
           </div>
@@ -89,36 +117,23 @@ export default function SyncModal({ isOpen, onClose, visibleBookings = [], selec
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
               <div>
                 <div style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>Google Calendar</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Importa el archivo .ics en tu cuenta de Google</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Importa el archivo en tu cuenta de Google</div>
               </div>
               <button 
                 className="btn btn-secondary" 
-                style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}
+                style={{ fontSize: '0.78rem', padding: '0.35rem 0.7rem' }}
                 onClick={() => window.open('https://calendar.google.com/calendar/r/settings/export', '_blank')}
               >
                 Abrir Google Cal
               </button>
             </div>
           </div>
+        </div>
 
-          {/* Opción URL Feed */}
-          <div style={{ background: '#18181b', padding: '0.9rem', borderRadius: '8px', border: '1px solid var(--border-strong)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-              <div>
-                <div style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>Suscripción en Vivo (URL Feed iCal)</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                  Enlace de actualización automática ({selectedRoomFilter === 'ALL' ? 'Todas las salas' : `Filtro: ${selectedRoomFilter}`})
-                </div>
-              </div>
-              <button 
-                className="btn btn-secondary" 
-                style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}
-                onClick={handleCopyFeed}
-              >
-                {copied ? '✓ Copiado' : 'Copiar URL Feed'}
-              </button>
-            </div>
-          </div>
+        {/* Nota aclaratoria de cuentas corporativas */}
+        <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '0.8rem', borderRadius: '8px', marginBottom: '1.2rem', fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+          <strong style={{ color: 'var(--danger)', display: 'block', marginBottom: '0.2rem' }}>Nota para Cuentas Corporativas / Institucionales (Generalitat):</strong>
+          Las políticas de seguridad de Exchange/Microsoft 365 en administraciones públicas suelen bloquear suscripciones externas en cuentas de trabajo. Se recomienda usar una cuenta personal (Gmail/Outlook personal/iPhone) o instalar la App PWA directamente en tu teléfono móvil.
         </div>
 
         <div style={{ textAlign: 'right' }}>
