@@ -1,8 +1,5 @@
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-
-const rawAdmin = require('firebase-admin');
-const admin = rawAdmin.apps ? rawAdmin : (rawAdmin.default || rawAdmin);
+import { initializeApp, cert, getApps } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 
 // Función para limpiar la clave privada de Firebase
 const parsePrivateKey = (key) => {
@@ -15,11 +12,10 @@ const parsePrivateKey = (key) => {
 };
 
 function getDb() {
-  const apps = admin.apps || (rawAdmin && rawAdmin.apps) || [];
-  if (!apps || !apps.length) {
+  if (!getApps().length) {
     if (process.env.FIREBASE_SERVICE_ACCOUNT) {
       const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-      admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+      initializeApp({ credential: cert(serviceAccount) });
     } else {
       const projectId = process.env.FIREBASE_PROJECT_ID;
       const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
@@ -29,20 +25,13 @@ function getDb() {
         throw new Error(`Configuración de Firebase incompleta en Vercel. Faltan variables: projectId=${!!projectId}, clientEmail=${!!clientEmail}, privateKey=${!!privateKey}`);
       }
       
-      admin.initializeApp({
-        credential: admin.credential.cert({ projectId, clientEmail, privateKey })
+      initializeApp({
+        credential: cert({ projectId, clientEmail, privateKey })
       });
     }
   }
-  return admin.firestore();
+  return getFirestore();
 }
-
-
-
-
-
-
-
 
 // Escapar texto según especificación iCal RFC 5545
 const escapeICalText = (text) => {
@@ -73,7 +62,6 @@ const parseDate = (dateStr, timeStr) => {
   const d = new Date(year, (month || 1) - 1, day || 1, hours, minutes, 0, 0);
   return isNaN(d.getTime()) ? new Date() : d;
 };
-
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -106,7 +94,6 @@ export default async function handler(req, res) {
       const startTime = parseDate(data.date, data.startTimeStr || data.time);
       const endTime = data.endTimeStr ? parseDate(data.date, data.endTimeStr) : new Date(startTime.getTime() + 2 * 60 * 60 * 1000);
 
-
       const eventTitle = escapeICalText(data.name || data.title || "Reserva WAR");
       const roomName = escapeICalText(data.room || "Sala Principal");
       const attendeesList = escapeICalText((data.attendees || []).map(a => a.name || a.email).join(', ') || 'N/A');
@@ -138,4 +125,3 @@ export default async function handler(req, res) {
     });
   }
 }
-
