@@ -12,6 +12,8 @@ import {
 } from '../services/cleaningSwapService';
 import SwapModal from './SwapModal';
 import IncidentModal from './IncidentModal';
+import CleaningHistoryModal from './CleaningHistoryModal';
+import { recordCleaningHistory, removeCleaningHistoryForWeek } from '../services/cleaningHistoryService';
 
 export default function CleaningCard({ user, userRole }) {
   const [config, setConfig] = useState(null);
@@ -22,6 +24,7 @@ export default function CleaningCard({ user, userRole }) {
   const [showScheduleDropdown, setShowScheduleDropdown] = useState(false);
   const [isSwapModalOpen, setIsSwapModalOpen] = useState(false);
   const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [actionMsg, setActionMsg] = useState('');
 
   const weekId = getWeekId();
@@ -97,7 +100,8 @@ export default function CleaningCard({ user, userRole }) {
   if (currentWeekOverride && currentWeekOverride.assigneeName) {
     assignee = {
       id: currentWeekOverride.assigneeId,
-      name: currentWeekOverride.assigneeName
+      name: currentWeekOverride.assigneeName,
+      isManual: currentWeekOverride.isManual || false
     };
     isSwapTurn = currentWeekOverride.isSwap || false;
     originalAssigneeName = currentWeekOverride.originalAssigneeName;
@@ -129,6 +133,20 @@ export default function CleaningCard({ user, userRole }) {
         completedAt: status ? new Date() : null,
         weekRange: weekRange
       }, { merge: true });
+
+      if (status && assignee) {
+        await recordCleaningHistory({
+          weekId: weekId,
+          weekRange: weekRange,
+          memberId: assignee.id || 'manual',
+          memberName: assignee.name || 'Socio',
+          isManual: Boolean(assignee.isManual || assignee.type === 'manual'),
+          completedByUid: user?.uid || 'system',
+          completedByName: user?.displayName || user?.email || 'Socio'
+        });
+      } else if (!status) {
+        await removeCleaningHistoryForWeek(weekId);
+      }
     } catch (err) {
       console.error("Error al actualizar limpieza:", err);
       alert("Error al actualizar el estado de limpieza.");
@@ -217,8 +235,12 @@ export default function CleaningCard({ user, userRole }) {
       <div className="cleaning-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
           <div className="cleaning-icon" style={{ background: isCompleted ? 'rgba(16, 185, 129, 0.2)' : undefined, color: isCompleted ? 'var(--success)' : undefined }}>
-            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+            <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m16 4 3 3L7 19l-3 1 1-3L16 4z"></path>
+              <path d="m14 6 3 3"></path>
+              <path d="M4 20h4"></path>
+              <circle cx="18" cy="18" r="2"></circle>
+              <circle cx="20" cy="14" r="1.5"></circle>
             </svg>
           </div>
           <div>
@@ -226,17 +248,17 @@ export default function CleaningCard({ user, userRole }) {
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', margin: 0 }}>{weekRange}</p>
           </div>
         </div>
-        <div>
+        <div style={{ flexShrink: 0 }}>
           {isCompleted ? (
-            <span style={{ fontSize: '0.75rem', background: 'rgba(16, 185, 129, 0.2)', color: 'var(--success)', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold' }}>
+            <span style={{ fontSize: '0.75rem', background: 'rgba(16, 185, 129, 0.2)', color: 'var(--success)', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
               ✓ Completada
             </span>
           ) : isUrgentWarning ? (
-            <span style={{ fontSize: '0.75rem', background: 'rgba(239, 68, 68, 0.2)', color: 'var(--danger)', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold' }}>
+            <span style={{ fontSize: '0.75rem', background: 'rgba(239, 68, 68, 0.25)', color: 'var(--danger)', padding: '3px 8px', borderRadius: '12px', fontWeight: '800', whiteSpace: 'nowrap', border: '1px solid var(--danger)' }}>
               ⚠️ ¡Último día!
             </span>
           ) : (
-            <span style={{ fontSize: '0.75rem', background: 'rgba(99, 102, 241, 0.2)', color: 'var(--accent-primary)', padding: '2px 8px', borderRadius: '12px' }}>
+            <span style={{ fontSize: '0.75rem', background: 'rgba(99, 102, 241, 0.2)', color: 'var(--accent-primary)', padding: '2px 8px', borderRadius: '12px', whiteSpace: 'nowrap' }}>
               En progreso
             </span>
           )}
@@ -359,12 +381,12 @@ export default function CleaningCard({ user, userRole }) {
         )
       )}
 
-      {/* Botones de acción secundaria (Cambio / Incidencia) ajustados y más compactos */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.8rem', width: '100%' }}>
+      {/* Botones de acción secundaria (Cambio / Incidencia) adaptativos */}
+      <div className="cleaning-actions-group">
         {members.length > 1 && (
           <button 
             className="btn btn-secondary" 
-            style={{ flex: 1, padding: '0.35rem 0.4rem', fontSize: '0.78rem', whiteSpace: 'nowrap', justifyContent: 'center' }}
+            style={{ flex: 1, padding: '0.45rem 0.5rem', fontSize: '0.78rem', whiteSpace: 'nowrap', justifyContent: 'center' }}
             onClick={() => setIsSwapModalOpen(true)}
           >
             Cambiar Turno
@@ -372,7 +394,7 @@ export default function CleaningCard({ user, userRole }) {
         )}
         <button 
           className="btn btn-secondary" 
-          style={{ flex: 1, padding: '0.35rem 0.4rem', fontSize: '0.78rem', background: 'rgba(239, 68, 68, 0.12)', color: 'var(--danger)', border: '1px solid rgba(239, 68, 68, 0.3)', whiteSpace: 'nowrap', justifyContent: 'center' }}
+          style={{ flex: 1, padding: '0.45rem 0.5rem', fontSize: '0.78rem', background: 'rgba(239, 68, 68, 0.12)', color: 'var(--danger)', border: '1px solid rgba(239, 68, 68, 0.3)', whiteSpace: 'nowrap', justifyContent: 'center' }}
           onClick={() => setIsIncidentModalOpen(true)}
         >
           Reportar Incidencia
@@ -425,7 +447,7 @@ export default function CleaningCard({ user, userRole }) {
                     )}
                   </div>
                   {item.isMe && (
-                    <span style={{ background: 'var(--accent-primary)', color: 'white', fontSize: '0.7rem', padding: '1px 6px', borderRadius: '4px', fontWeight: 'bold' }}>
+                    <span style={{ background: '#ffffff', color: '#000000', fontSize: '0.7rem', padding: '2px 8px', borderRadius: '4px', fontWeight: '800', border: '1px solid #ffffff' }}>
                       ¡Tu Turno!
                     </span>
                   )}
@@ -440,6 +462,15 @@ export default function CleaningCard({ user, userRole }) {
           )}
         </div>
       )}
+
+      {/* Botón de Histórico */}
+      <button 
+        className="btn btn-secondary" 
+        style={{ width: '100%', marginTop: '0.8rem', padding: '0.45rem', fontSize: '0.8rem', justifyContent: 'center' }}
+        onClick={() => setIsHistoryModalOpen(true)}
+      >
+        📜 Ver Histórico de Limpiezas
+      </button>
 
       {/* Modales */}
       <SwapModal 
@@ -458,6 +489,11 @@ export default function CleaningCard({ user, userRole }) {
         weekId={weekId}
         weekRange={weekRange}
         assignedMemberName={assignee ? assignee.name : 'Sin asignar'}
+      />
+
+      <CleaningHistoryModal
+        isOpen={isHistoryModalOpen}
+        onClose={() => setIsHistoryModalOpen(false)}
       />
     </div>
   );

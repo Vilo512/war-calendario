@@ -22,6 +22,9 @@ import {
   deleteAnnouncement, 
   subscribeAnnouncements 
 } from '../services/announcementService';
+import CleaningHistoryModal from './CleaningHistoryModal';
+import { recordCleaningHistory } from '../services/cleaningHistoryService';
+import { getWeekId, formatWeekRange } from '../utils/cleaningUtils';
 
 export default function AdminPanel({ isOpen, onClose, user }) {
   const [users, setUsers] = useState([]);
@@ -31,6 +34,7 @@ export default function AdminPanel({ isOpen, onClose, user }) {
   const [incidents, setIncidents] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
   const [activeTab, setActiveTab] = useState('users'); // 'users', 'cleaning', 'incidents', 'announcements', 'rooms'
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
 
   const [selectedUserToAdd, setSelectedUserToAdd] = useState('');
   const [manualMemberName, setManualMemberName] = useState('');
@@ -41,6 +45,38 @@ export default function AdminPanel({ isOpen, onClose, user }) {
   const [ancPriority, setAncPriority] = useState('NORMAL');
   const [ancDuration, setAncDuration] = useState('0'); // '0' = permanente, '1', '3', '7', '14', '30'
   const [msg, setMsg] = useState('');
+
+  const handleAdminMarkComplete = async (member) => {
+    if (!member) return;
+    if (window.confirm(`¿Confirmar y registrar la limpieza del socio "${member.name}" para esta semana en el histórico?`)) {
+      try {
+        const currentWeekId = getWeekId();
+        const currentWeekRange = formatWeekRange();
+        await setDoc(doc(db, 'cleaning_schedule', currentWeekId), {
+          completed: true,
+          completedBy: `${user?.displayName || 'Admin'} (Validación Admin)`,
+          completedAt: new Date(),
+          weekRange: currentWeekRange
+        }, { merge: true });
+
+        await recordCleaningHistory({
+          weekId: currentWeekId,
+          weekRange: currentWeekRange,
+          memberId: member.id || 'manual',
+          memberName: member.name,
+          isManual: Boolean(member.isManual),
+          completedByUid: user?.uid || 'admin',
+          completedByName: `${user?.displayName || user?.email || 'Admin'} (Admin)`
+        });
+
+        setMsg(`✓ Limpieza del socio "${member.name}" guardada con éxito en el histórico.`);
+        setTimeout(() => setMsg(''), 4000);
+      } catch (err) {
+        console.error("Error al registrar limpieza desde Admin:", err);
+        setMsg('Error al registrar limpieza: ' + err.message);
+      }
+    }
+  };
 
   const [purgeMonth, setPurgeMonth] = useState(String(new Date().getMonth() + 1).padStart(2, '0'));
   const [purgeYear, setPurgeYear] = useState(String(new Date().getFullYear()));
@@ -509,7 +545,16 @@ export default function AdminPanel({ isOpen, onClose, user }) {
         {/* Tab Limpieza */}
         {activeTab === 'cleaning' && (
           <div>
-            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem' }}>Configuración del Cuadrante Rotativo</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <h3 style={{ fontSize: '1.1rem', margin: 0 }}>Configuración del Cuadrante Rotativo</h3>
+              <button 
+                className="btn btn-secondary" 
+                style={{ fontSize: '0.8rem', padding: '0.35rem 0.8rem' }}
+                onClick={() => setIsHistoryModalOpen(true)}
+              >
+                📜 Consultar Histórico de Limpiezas
+              </button>
+            </div>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
               {/* Añadir socio registrado */}
@@ -552,8 +597,19 @@ export default function AdminPanel({ isOpen, onClose, user }) {
                     <div>
                       <span style={{ fontWeight: 'bold', marginRight: '8px' }}>#{idx + 1}</span>
                       <span>{m.name}</span>
+                      {m.isManual && (
+                        <span style={{ fontSize: '0.7rem', color: '#f59e0b', marginLeft: '6px' }}>(Manual)</span>
+                      )}
                     </div>
-                    <div style={{ display: 'flex', gap: '0.4rem' }}>
+                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                      <button 
+                        className="btn btn-success" 
+                        style={{ padding: '0.2rem 0.5rem', fontSize: '0.73rem' }} 
+                        onClick={() => handleAdminMarkComplete(m)}
+                        title="Marcar y registrar limpieza completada para este socio"
+                      >
+                        ✓ Validar Limpieza
+                      </button>
                       <button className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem' }} onClick={() => moveMember(idx, -1)} disabled={idx === 0}>▲</button>
                       <button className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem' }} onClick={() => moveMember(idx, 1)} disabled={idx === cleaningMembers.length - 1}>▼</button>
                       <button className="btn" style={{ background: 'var(--danger)', padding: '0.2rem 0.5rem' }} onClick={() => removeMember(idx)}>×</button>
@@ -914,6 +970,11 @@ export default function AdminPanel({ isOpen, onClose, user }) {
           </div>
         )}
       </div>
+
+      <CleaningHistoryModal 
+        isOpen={isHistoryModalOpen} 
+        onClose={() => setIsHistoryModalOpen(false)} 
+      />
     </div>
   );
 }

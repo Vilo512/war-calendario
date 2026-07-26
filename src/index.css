@@ -48,7 +48,7 @@ body::before {
   height: 70vw;
   max-height: 600px;
   background: url('/logo-circulo.svg') no-repeat center center / contain;
-  opacity: 0.04;
+  opacity: 0.09;
   pointer-events: none;
   z-index: 0;
 }
@@ -61,11 +61,13 @@ body::before {
   overflow-x: hidden;
 }
 
-/* Tactical Solid Panel (No Glassmorphism) */
+/* Semi-transparent Glassmorphism Panel */
 .glass-panel {
-  background: var(--bg-panel);
+  background: rgba(18, 18, 21, 0.78);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: 8px;
   box-shadow: var(--panel-shadow);
   padding: 1.5rem;
   position: relative;
@@ -161,9 +163,24 @@ body::before {
   overflow-x: hidden;
 }
 
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  width: 100%;
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+}
+
 .header-user-section {
   display: flex;
-  gap: 1rem;
+  gap: 1.2rem;
   align-items: center;
   flex-wrap: wrap;
 }
@@ -174,39 +191,47 @@ body::before {
   align-items: center;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
   .header {
     flex-direction: column;
     align-items: center;
     text-align: center;
-    gap: 1.2rem;
+    gap: 1.8rem;
+    margin-bottom: 2rem;
   }
   .header-brand {
-    flex-direction: column;
-    text-align: center;
-    gap: 0.5rem !important;
+    flex-direction: row !important;
+    justify-content: center;
+    text-align: left;
+    gap: 1rem !important;
+    margin-bottom: 1.8rem !important; /* Margen inferior amplio y claro entre subtítulo y barra de usuario */
+    width: 100%;
   }
   .header-user-section {
     width: 100%;
     flex-direction: column;
     align-items: center;
-    gap: 1rem;
+    gap: 1.2rem;
+    margin-top: 0.5rem;
   }
   .header-user-info {
     text-align: center !important;
     align-items: center !important;
+    width: 100%;
   }
   .header-actions {
     width: 100%;
     display: flex;
     justify-content: center;
-    gap: 0.8rem;
-    flex-wrap: wrap;
+    gap: 0.5rem;
+    flex-wrap: nowrap;
   }
   .header-actions .btn {
     flex: 1;
-    min-width: 150px;
-    max-width: 240px;
+    min-width: 0;
+    padding: 0.65rem 0.5rem;
+    font-size: 0.78rem;
+    white-space: nowrap;
     justify-content: center;
   }
 }
@@ -373,6 +398,19 @@ body::before {
   align-items: center;
   gap: 0.75rem;
   margin-bottom: 1rem;
+}
+
+.cleaning-actions-group {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.8rem;
+  width: 100%;
+}
+
+@media (max-width: 400px) {
+  .cleaning-actions-group {
+    flex-direction: column;
+  }
 }
 
 .cleaning-icon {

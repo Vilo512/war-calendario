@@ -32,30 +32,22 @@ export default function App() {
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        // Escuchar perfil del usuario en Firestore
+        // Escuchar perfil del usuario en Firestore (Lectura pasiva estricta)
         const userDocRef = doc(db, 'users', currentUser.uid);
-        unsubProfile = onSnapshot(userDocRef, async (docSnap) => {
+        unsubProfile = onSnapshot(userDocRef, (docSnap) => {
           if (docSnap.exists()) {
             setUserProfile(docSnap.data());
           } else {
-            // Si es el primer usuario en la BD, asignar admin automaticamente
-            try {
-              const usersSnap = await getDocs(collection(db, 'users'));
-              const isFirst = usersSnap.empty;
-              const newRole = isFirst ? ROLES.ADMIN : ROLES.NO_SOCIO;
-              const newProfile = {
-                uid: currentUser.uid,
-                email: currentUser.email,
-                displayName: currentUser.displayName || currentUser.email,
-                role: newRole,
-                createdAt: new Date()
-              };
-              setUserProfile(newProfile);
-              await setDoc(doc(db, 'users', currentUser.uid), newProfile);
-            } catch (err) {
-              console.error("Error al crear perfil inicial:", err);
-              setUserProfile({ role: ROLES.NO_SOCIO });
-            }
+            // Si el documento no existe en Firestore, crear perfil estándar
+            const newProfile = {
+              uid: currentUser.uid,
+              email: currentUser.email,
+              displayName: currentUser.displayName || currentUser.email,
+              role: ROLES.NO_SOCIO,
+              createdAt: new Date()
+            };
+            setUserProfile(newProfile);
+            setDoc(userDocRef, newProfile).catch(err => console.error("Error creando perfil inicial:", err));
           }
           setLoadingAuth(false);
         }, (error) => {
@@ -110,54 +102,57 @@ export default function App() {
   return (
     <div className="app-container">
       <header className="header">
-        <div className="header-brand" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div className="header-brand" style={{ display: 'flex', alignItems: 'center', gap: '1.2rem' }}>
           <img 
             src="/logo-circulo.png" 
-            alt="Logo WAR" 
+            alt="Logo W.A.R." 
             style={{ 
-              width: '52px', 
-              height: '52px', 
+              width: '64px', 
+              height: '64px', 
               borderRadius: '50%',
               objectFit: 'cover',
-              boxShadow: '0 0 20px rgba(255, 255, 255, 0.15)',
-              border: '2px solid rgba(255, 255, 255, 0.2)'
+              boxShadow: '0 0 25px rgba(255, 255, 255, 0.25)',
+              border: '2.5px solid rgba(255, 255, 255, 0.3)',
+              flexShrink: 0
             }} 
           />
           <div>
-            <h1 className="title" style={{margin: 0, fontSize: '1.9rem', letterSpacing: '-0.02em'}}>WAR CALENDARIO</h1>
-            <p style={{color: 'var(--text-secondary)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600}}>
-              Asociación de Juegos · Los Cuervos
+            <h1 className="title" style={{margin: 0, fontSize: '2.2rem', letterSpacing: '0.04em', lineHeight: 1.1}}>W.A.R.</h1>
+            <p style={{color: 'var(--text-secondary)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, margin: 0, marginTop: '2px'}}>
+              Wargames and Rol Lleida
             </p>
           </div>
         </div>
 
         <div className="header-user-section">
-          <div className="header-user-info" style={{ textAlign: 'right', display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-              Hola, <strong style={{ color: '#ffffff' }}>{user.displayName || user.email}</strong>
-              <span style={{ 
-                marginLeft: '8px', 
-                fontSize: '0.75rem', 
-                padding: '3px 8px', 
-                borderRadius: '4px', 
-                fontWeight: '800',
-                fontFamily: "var(--font-stencil)",
-                letterSpacing: '0.05em',
-                textTransform: 'uppercase',
-                border: isAdmin ? '1px solid #ffffff' : (roleLabel === 'Socio' ? '1px solid #10b981' : '1px solid #52525b'),
-                background: isAdmin ? '#ffffff' : (roleLabel === 'Socio' ? '#064e3b' : '#18181b'), 
-                color: isAdmin ? '#000000' : (roleLabel === 'Socio' ? '#34d399' : '#e4e4e7'),
-                boxShadow: '0 2px 6px rgba(0,0,0,0.8)'
-              }}>
+          <div className="header-user-info" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+              <span>Hola, <strong style={{ color: '#ffffff' }}>{user.displayName || user.email}</strong></span>
+              <span 
+                style={{ 
+                  fontSize: '0.75rem', 
+                  padding: '3px 8px', 
+                  borderRadius: '4px', 
+                  fontWeight: '800',
+                  fontFamily: "var(--font-stencil)",
+                  letterSpacing: '0.05em',
+                  textTransform: 'uppercase',
+                  border: isAdmin ? '1px solid #ffffff' : (roleLabel === 'Socio' ? '1px solid #10b981' : '1px solid #52525b'),
+                  background: isAdmin ? '#ffffff' : (roleLabel === 'Socio' ? '#064e3b' : '#18181b'), 
+                  color: isAdmin ? '#000000' : (roleLabel === 'Socio' ? '#34d399' : '#e4e4e7'),
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.8)',
+                  whiteSpace: 'nowrap'
+                }}
+              >
                 {roleLabel}
               </span>
+              <button 
+                onClick={() => signOut(auth)} 
+                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '0 4px', fontSize: '0.8rem', textDecoration: 'underline', opacity: 0.85 }}
+              >
+                (Cerrar sesión)
+              </button>
             </span>
-            <button 
-              onClick={() => signOut(auth)} 
-              style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: 0, textAlign: 'inherit', fontSize: '0.8rem', marginTop: '2px' }}
-            >
-              Cerrar sesión
-            </button>
           </div>
 
           <div className="header-actions">
