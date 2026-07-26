@@ -46,6 +46,12 @@ const escapeICalText = (text) => {
     .replace(/\n/g, '\\n');
 };
 
+// Formatear fecha a YYYYMMDDTHHmmssZ para iCal
+const formatICalDate = (date) => {
+  if (!date || isNaN(date.getTime())) return '';
+  return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+};
+
 // Parsear fecha y hora de forma ultra-robusta (soporta guiones y dos puntos en las horas)
 const parseDate = (dateStr, timeStr) => {
   if (!dateStr) return new Date();
@@ -59,6 +65,7 @@ const parseDate = (dateStr, timeStr) => {
   const d = new Date(year, (month || 1) - 1, day || 1, hours, minutes, 0, 0);
   return isNaN(d.getTime()) ? new Date() : d;
 };
+
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
