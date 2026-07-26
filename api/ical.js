@@ -1,5 +1,7 @@
-import { initializeApp, cert, getApps } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
+const admin = require('firebase-admin');
 
 // Función para limpiar la clave privada de Firebase
 const parsePrivateKey = (key) => {
@@ -12,10 +14,10 @@ const parsePrivateKey = (key) => {
 };
 
 function getDb() {
-  if (!getApps().length) {
+  if (!admin.apps.length) {
     if (process.env.FIREBASE_SERVICE_ACCOUNT) {
       const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-      initializeApp({ credential: cert(serviceAccount) });
+      admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
     } else {
       const projectId = process.env.FIREBASE_PROJECT_ID;
       const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
@@ -25,13 +27,14 @@ function getDb() {
         throw new Error(`Configuración de Firebase incompleta en Vercel. Faltan variables: projectId=${!!projectId}, clientEmail=${!!clientEmail}, privateKey=${!!privateKey}`);
       }
       
-      initializeApp({
-        credential: cert({ projectId, clientEmail, privateKey })
+      admin.initializeApp({
+        credential: admin.credential.cert({ projectId, clientEmail, privateKey })
       });
     }
   }
-  return getFirestore();
+  return admin.firestore();
 }
+
 
 // Escapar texto según especificación iCal RFC 5545
 const escapeICalText = (text) => {
