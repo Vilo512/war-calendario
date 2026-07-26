@@ -56,13 +56,18 @@ export async function recordCleaningHistory({
  */
 export function subscribeCleaningHistory(callback) {
   const historyRef = collection(db, 'cleaning_history');
-  const q = query(historyRef, orderBy('completedAt', 'desc'), limit(100));
 
-  return onSnapshot(q, (snapshot) => {
+  return onSnapshot(historyRef, (snapshot) => {
     const historyList = snapshot.docs.map(docSnap => ({
       id: docSnap.id,
       ...docSnap.data()
     }));
+    // Ordenar en memoria por completedAt descendente
+    historyList.sort((a, b) => {
+      const tA = a.completedAt?.toMillis ? a.completedAt.toMillis() : (a.completedAt ? new Date(a.completedAt).getTime() : 0);
+      const tB = b.completedAt?.toMillis ? b.completedAt.toMillis() : (b.completedAt ? new Date(b.completedAt).getTime() : 0);
+      return tB - tA;
+    });
     callback(historyList);
   }, (error) => {
     console.error("Error al escuchar histórico de limpieza:", error);
