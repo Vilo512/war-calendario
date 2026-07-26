@@ -1,4 +1,4 @@
-# Documento de Handover - WAR CALENDARIO (Asociación Los Cuervos)
+# Documento de Handover - W.A.R. (Wargames and Rol Lleida)
 
 **Fecha de actualización**: 26 de Julio de 2026  
 **Estado del Proyecto**: ✅ **100% Funcional, Compilado y Desplegado en Producción**  
@@ -12,13 +12,13 @@
 
 - **Frontend**: React (Vite) + Vanilla CSS + PWA (Progressive Web App con Service Worker y Manifest).
 - **Backend / Base de Datos**: Firebase Authentication + Firestore (Colecciones en tiempo real).
-- **Servidor de Sincronización WebCal / iCal en Vivo (100% Gratuito sin Firebase Blaze Plan)**:
-  - **Vercel Serverless Function** (`api/ical.js`).
-  - **Arquitectura Nativizada de 0 Dependencias**: Utiliza la librería nativa `crypto` de Node 18+ para firmar tokens JWT OAuth 2.0 y consultar la API REST oficial de Firestore.
-  - **Cero errores de empaquetado** y latencia ultra baja (~15ms).
-  - Soporta suscripción en **iPhone / iPad** (`webcal://`), **Google Calendar** (`https://`), y **Outlook** (`https://`).
-  - **Filtro dinámico por Sala en URL**: `https://war-calendario.vercel.app/api/ical?room=Estudio%20A` (o `?room=ALL`).
-- **Estética & Diseño**: Táctica / Esténcil militar en blanco y negro (Saira Stencil One + Outfit font), **0% emojis**, con el logo oficial circular en el header y marca de agua SVG al 4% de opacidad centrada en el fondo.
+- **Servidor de Sincronización WebCal / iCal en Vivo**: Vercel Serverless Function (`api/ical.js`).
+- **Estética & Diseño**: 
+  - Identidad de Marca: **W.A.R.** (*Wargames and Rol Lleida*).
+  - Táctica / Esténcil militar en blanco y negro (Saira Stencil One + Outfit font).
+  - Logo circular realzado en el header.
+  - Marca de agua SVG en background con opacidad ~9% y paneles translúcidos glassmorphism.
+  - Responsivo optimizado para móviles (iPhone SE 375x667).
 
 ---
 
@@ -28,49 +28,27 @@
 2. **`rooms`**: `{ name, capacity, active }`
 3. **`bookings`**: `{ name, date (YYYY-MM-DD), startTimeStr (HH:mm), endTimeStr (HH:mm), room, createdBy, attendees: [{uid, name}], maxAttendees }`
 4. **`cleaning_schedule/config`**: `{ members: [{id, name, type, uid}], currentWeekIndex }`
-5. **`cleaning_swaps`**: Solicitudes de cambio de turno de limpieza entre socios.
-6. **`cleaning_incidents`**: Reportes de faltas o problemas en el turno de limpieza (`OPEN`, `RESOLVED`, `DISMISSED`).
-7. **`announcements`**: Comunicados oficiales (`title`, `content`, `priority: 'NORMAL'|'URGENT'`, `durationDays`, `expiresAt`, `createdAt`).
-8. **`config/role_labels`**: Personalización de los nombres de los 4 estatus/roles (`label_0`, `label_1`, `label_2`, `label_9`).
+5. **`cleaning_history`**: `{ weekId, weekRange, memberId, memberName, isManual, completedAt, completedByUid, completedByName }`
+6. **`cleaning_swaps`**: Solicitudes de cambio de turno de limpieza entre socios.
+7. **`cleaning_incidents`**: Reportes de faltas o problemas en el turno de limpieza.
+8. **`announcements`**: Comunicados oficiales (`title`, `content`, `priority`, `durationDays`, `expiresAt`, `createdAt`).
+9. **`config/role_labels`**: Personalización de los nombres de los 4 estatus/roles.
 
 ---
 
 ## 🛠️ 3. Componentes Principales
 
-- `src/App.jsx`: Componente raíz con header, badge de rol, botón de Admin, botón de Nueva Reserva, banner de comunicados oficiales y renderizado de PWA.
-- `src/components/CalendarView.jsx`: Vista del calendario (Modo Mes y Modo Semana), filtro por salas, indicador de ocupación dinámica de salas en el mes, botón compacto `Sincronizar` y navegación inmutable.
-- `src/components/BookingModal.jsx`: Modal de creación de reserva con selectores de Hora Inicio/Fin, autopoblado de fecha seleccionada y detector en tiempo real de solapamientos (alerta en rojo).
-- `src/components/CleaningCard.jsx`: Tarjeta del cuadrante de limpieza con botones compactos "Turno completado" (verde sobrio), "Cambiar Turno" y "Reportar Incidencia".
-- `src/components/AdminPanel.jsx`: Panel de administración con 5 pestañas:
-  1. **Usuarios**: Renombrado dinámico de los 4 niveles de estatus y cambio de roles.
-  2. **Cuadrante Limpieza**: Gestión de orden rotativo y permutas de semanas.
-  3. **Incidencias**: Control y resolución de faltas de limpieza.
-  4. **Anuncios**: Publicación con vigencia por días y borrado.
-  5. **Salas**: Gestión de salas y **Herramienta de Purga/Borrado de Reservas por Mes o Vaciamiento Total**.
-- `src/components/SyncModal.jsx`: Popover modal de sincronización con selector de salas, enlace nativo `webcal://` para iPhone y enlaces `https://` oficiales para Google Calendar y Outlook.
-- `src/components/RoomPickerModal.jsx`: Modal táctil tipo Action Sheet para seleccionar salas en móviles sin usar desplegables `<select>` nativos.
-- `src/components/AttendeesModal.jsx`: Modal de consulta de lista de socios apuntados a una reserva.
-- `src/components/AnnouncementBanner.jsx`: Banner destacado en la portada de la web para comunicados urgentes u oficiales.
-- `api/ical.js`: API Serverless en Vercel para generar feeds iCal RFC 5545 compatibles con iOS, Google y Microsoft 365.
+- `src/App.jsx`: Componente raíz con header de la marca W.A.R., barra de usuario pasiva estricta, botones de acción y visualización general.
+- `src/components/CalendarView.jsx`: Vista del calendario (Modo Mes y Modo Semana), filtro por salas, ocupación dinámica y sincronización iCal.
+- `src/components/BookingModal.jsx`: Modal de creación de reservas con validación de solapamiento en tiempo real.
+- `src/components/CleaningCard.jsx`: Tarjeta del turno de limpieza con icono de escoba, badge antidesbordamiento, acciones apilables en pantalla estrecha y sincronización dinámica con el histórico.
+- `src/components/CleaningHistoryModal.jsx`: Modal de consulta cronológica del histórico de limpiezas completadas con buscador en tiempo real.
+- `src/components/AdminPanel.jsx`: Panel de administración con 5 pestañas (Usuarios, Cuadrante Limpieza + Validación, Incidencias, Anuncios, Salas + Purga).
+- `src/services/cleaningHistoryService.js`: Servicio desacoplado para gestionar las lecturas y registros en `cleaning_history`.
 
 ---
 
-## 🚀 4. Comandos de Despliegue y Git
+## 🔒 4. Reglas de Backup y Checkpoints
 
-- **Compilar producción**:  
-  `npm run build`
-- **Desplegar en Firebase Hosting & Firestore Rules**:  
-  `npx firebase-tools deploy --only hosting,firestore:rules --project war-calendario`
-- **Desplegar servidor iCal en Vercel**:  
-  Basta con hacer `git push origin main` (Vercel está vinculado al repositorio GitHub `Vilo512/war-calendario`).
-
----
-
-## 📌 5. Próximos Pasos y Nuevas Funcionalidades (Para la Siguiente Sesión)
-
-1. **Implementar Feedback de Usuarios**:
-   - Incorporar las nuevas solicitudes, sugerencias y mejoras recibidas por parte de los socios de la asociación.
-2. **Notificaciones Automáticas por Email / Telegram**:
-   - Recordatorios automáticos para el socio de limpieza al iniciar su semana o al recibir una solicitud de cambio de turno.
-3. **Módulo de Inventario / Material de la Asociación**:
-   - Registro para consultar y reservar escenografía de wargames, juegos de mesa, cámaras o focos.
+- **Regla del Proyecto**: Cada vez que se solicite un Handover o finalice un bloque relevante, se realiza un git commit y push a la rama `main` de GitHub como punto de restauración inmutable.
+- **Commit Actual**: `8a736eb` ("Checkpoint: Bloques 1, 2 y 3 + Historico de Limpieza + Regla Backup").
