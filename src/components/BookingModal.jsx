@@ -287,13 +287,14 @@ export default function BookingModal({
             </div>
 
             {/* Sala y Fecha */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <div className="form-group">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', width: '100%', boxSizing: 'border-box' }}>
+              <div className="form-group" style={{ width: '100%', boxSizing: 'border-box' }}>
                 <label>Sala / Estudio</label>
                 <select 
                   className="form-input"
                   value={currentRoom}
                   onChange={(e) => setFormData({ ...formData, room: e.target.value })}
+                  style={{ width: '100%', boxSizing: 'border-box' }}
                   required
                 >
                   {roomsList.map(r => (
@@ -302,12 +303,12 @@ export default function BookingModal({
                 </select>
               </div>
 
-              <div className="form-group">
+              <div className="form-group" style={{ width: '100%', boxSizing: 'border-box' }}>
                 <label>Fecha de la Reserva</label>
                 <input 
                   type="date" 
                   className="form-input" 
-                  style={{ width: '100%' }}
+                  style={{ width: '100%', boxSizing: 'border-box' }}
                   value={formData.date}
                   onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                   required
@@ -341,20 +342,23 @@ export default function BookingModal({
               </div>
             </div>
 
-            {/* Configuración Bloque 4: Tipo de Actividad & Público Objetivo */}
-            <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border-light)', padding: '1rem', borderRadius: '8px', marginBottom: '1.2rem' }}>
-              <h4 style={{ margin: '0 0 0.8rem 0', fontSize: '0.95rem', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            {/* Configuración Bloque 4: Tipo de Actividad & Público Objetivo (Apilados verticalmente a Full Width para evitar overflow) */}
+            <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border-light)', padding: '1rem', borderRadius: '8px', marginBottom: '1.2rem', width: '100%', boxSizing: 'border-box' }}>
+              <h4 style={{ margin: '0 0 0.9rem 0', fontSize: '0.95rem', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                 ⚙️ Ajustes de Asistencia y Accesibilidad
               </h4>
               
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem', width: '100%', boxSizing: 'border-box' }}>
                 {/* Tipo de Actividad (Abierta vs Cerrada) */}
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label style={{ fontSize: '0.8rem' }}>Modalidad de Plaza</label>
+                <div className="form-group" style={{ marginBottom: 0, width: '100%', boxSizing: 'border-box' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.4rem', display: 'block', color: 'var(--text-secondary)' }}>
+                    Modalidad de Plaza
+                  </label>
                   <select 
                     className="form-input"
                     value={formData.activityType}
                     onChange={(e) => setFormData({ ...formData, activityType: e.target.value })}
+                    style={{ width: '100%', boxSizing: 'border-box', padding: '0.65rem 0.8rem', fontSize: '0.9rem' }}
                   >
                     <option value="open">🔓 Abierta (Cualquiera puede unirse)</option>
                     <option value="closed">🔒 Cerrada / Privada (Mesa reservada)</option>
@@ -362,12 +366,15 @@ export default function BookingModal({
                 </div>
 
                 {/* Público Objetivo */}
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label style={{ fontSize: '0.8rem' }}>Público Objetivo</label>
+                <div className="form-group" style={{ marginBottom: 0, width: '100%', boxSizing: 'border-box' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.4rem', display: 'block', color: 'var(--text-secondary)' }}>
+                    Público Objetivo
+                  </label>
                   <select 
                     className="form-input"
                     value={formData.targetAudience}
                     onChange={(e) => setFormData({ ...formData, targetAudience: e.target.value })}
+                    style={{ width: '100%', boxSizing: 'border-box', padding: '0.65rem 0.8rem', fontSize: '0.9rem' }}
                   >
                     <option value="publico">🌐 Público General (Todos)</option>
                     <option value="semisocios">🤝 Socios y Simpatizantes</option>
@@ -392,7 +399,7 @@ export default function BookingModal({
             </div>
 
             {/* Bloque 4: Pre-apuntados (Asistentes Iniciales) */}
-            <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border-light)', padding: '1rem', borderRadius: '8px', marginBottom: '1.2rem' }}>
+            <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border-light)', padding: '1rem', borderRadius: '8px', marginBottom: '1.2rem', width: '100%', boxSizing: 'border-box' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem' }}>
                 <h4 style={{ margin: 0, fontSize: '0.95rem', color: '#ffffff' }}>
                   👥 Pre-apuntados / Asistentes Iniciales ({preAttendees.length})
@@ -400,11 +407,11 @@ export default function BookingModal({
               </div>
 
               {/* Controles para añadir socio app o invitado manual */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', marginBottom: '0.8rem' }}>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', marginBottom: '0.8rem', width: '100%', boxSizing: 'border-box' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', width: '100%', boxSizing: 'border-box' }}>
                   <select 
                     className="form-input"
-                    style={{ flex: 1, fontSize: '0.8rem' }}
+                    style={{ flex: '1 1 180px', fontSize: '0.8rem', boxSizing: 'border-box' }}
                     value={selectedUserUid}
                     onChange={(e) => setSelectedUserUid(e.target.value)}
                   >
@@ -416,18 +423,18 @@ export default function BookingModal({
                   <button 
                     type="button" 
                     className="btn btn-secondary" 
-                    style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
+                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', whiteSpace: 'nowrap', flexShrink: 0 }}
                     onClick={handleAddRegisteredPreAttendee}
                   >
                     + Añadir Socio
                   </button>
                 </div>
 
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', width: '100%', boxSizing: 'border-box' }}>
                   <input 
                     type="text" 
                     className="form-input" 
-                    style={{ flex: 1, fontSize: '0.8rem' }}
+                    style={{ flex: '1 1 180px', fontSize: '0.8rem', boxSizing: 'border-box' }}
                     placeholder="O escribe nombre de invitado manual (sin app)..." 
                     value={manualGuestName}
                     onChange={(e) => setManualGuestName(e.target.value)}
@@ -435,7 +442,7 @@ export default function BookingModal({
                   <button 
                     type="button" 
                     className="btn btn-secondary" 
-                    style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
+                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', whiteSpace: 'nowrap', flexShrink: 0 }}
                     onClick={handleAddManualPreAttendee}
                   >
                     + Invitado
