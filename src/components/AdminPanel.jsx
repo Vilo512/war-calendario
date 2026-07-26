@@ -264,8 +264,10 @@ export default function AdminPanel({ isOpen, onClose, user }) {
   const handleRoleChange = async (targetUserId, newRoleValue) => {
     try {
       const numericRole = typeof newRoleValue === 'number' ? newRoleValue : parseInt(newRoleValue, 10);
-      await updateDoc(doc(db, 'users', targetUserId), { role: numericRole });
-      setMsg('Estatus de usuario actualizado.');
+      // Actualizacion optimista del estado local para respuesta UI instantanea
+      setUsers(prev => prev.map(u => u.id === targetUserId ? { ...u, role: numericRole } : u));
+      await setDoc(doc(db, 'users', targetUserId), { role: numericRole }, { merge: true });
+      setMsg('✓ Estatus de usuario actualizado.');
       setTimeout(() => setMsg(''), 3000);
     } catch (err) {
       console.error("Error al actualizar rol:", err);
