@@ -1,34 +1,56 @@
 import React, { useState, useEffect } from 'react';
-import { doc, runTransaction, collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { doc, runTransaction, collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { canBook as canBookUser, getRoleLabel } from '../utils/roleUtils';
 
-export default function BookingModal({ isOpen, onClose, user, userRole, initialDate, initialRoom }) {
+export default function BookingModal({ 
+  isOpen, 
+  onClose, 
+  user, 
+  userRole, 
+  initialDate, 
+  initialRoom,
+  duplicateBookingData = null
+}) {
   const [formData, setFormData] = useState({ 
     name: '', 
     room: '', 
     date: '', 
     startTime: '10:00', 
     endTime: '12:00', 
-    maxAttendees: '' 
+    maxAttendees: '',
+    activityType: 'open',       // 'open' (Abierta) | 'closed' (Cerrada/Privada)
+    targetAudience: 'publico'    // 'publico' | 'semisocios' | 'socios'
   });
   const [roomsList, setRoomsList] = useState([]);
+  const [registeredUsers, setRegisteredUsers] = useState([]);
   const [existingBookings, setExistingBookings] = useState([]);
+  const [preAttendees, setPreAttendees] = useState([]);
+  const [selectedUserUid, setSelectedUserUid] = useState('');
+  const [manualGuestName, setManualGuestName] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-
-  const defaultRooms = ['Estudio A', 'Estudio B', 'Sala Conferencias'];
 
   // Cargar lista de salas dinámicas
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'rooms'), (snapshot) => {
       const rList = [];
       snapshot.forEach(d => rList.push(d.data().name));
-      const listToUse = rList.length > 0 ? rList : defaultRooms;
-      setRoomsList(listToUse);
+      setRoomsList(rList);
     });
     return () => unsub();
   }, []);
+
+  // Cargar lista de usuarios registrados para el selector de pre-apuntados
+  useEffect(() => {
+    if (!isOpen) return;
+    const unsub = onSnapshot(collection(db, 'users'), (snapshot) => {
+      const uList = [];
+      snapshot.forEach(docSnap => uList.push({ id: docSnap.id, ...docSnap.data() }));
+      setRegisteredUsers(uList);
+    });
+    return () => unsub();
+  }, [isOpen]);
 
   // Cargar todas las reservas para la detección en vivo de conflictos
   useEffect(() => {
@@ -41,24 +63,43 @@ export default function BookingModal({ isOpen, onClose, user, userRole, initialD
     return () => unsub();
   }, [isOpen]);
 
-  // Inicializar o resetear el formulario cuando se abre el modal
+  // Inicializar o resetear el formulario cuando se abre el modal (soporta duplicado)
   useEffect(() => {
     if (isOpen) {
-      const todayStr = new Date().toISOString().split('T')[0];
-      const targetDate = initialDate ? initialDate : todayStr;
-      const targetRoom = initialRoom ? initialRoom : (roomsList[0] || 'Estudio A');
+      if (duplicateBookingData) {
+        setFormData({
+          name: duplicateBookingData.name ? `${duplicateBookingData.name} (Copia)` : '',
+          room: initialRoom || duplicateBookingData.room || (roomsList[0] || ''),
+          date: initialDate || duplicateBookingData.date || new Date().toISOString().split('T')[0],
+          startTime: duplicateBookingData.startTime || '10:00',
+          endTime: duplicateBookingData.endTime || '12:00',
+          maxAttendees: duplicateBookingData.maxAttendees || '',
+          activityType: duplicateBookingData.activityType || 'open',
+          targetAudience: duplicateBookingData.targetAudience || 'publico'
+        });
+        setPreAttendees(duplicateBookingData.attendees || []);
+      } else {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const targetDate = initialDate ? initialDate : todayStr;
+        const targetRoom = initialRoom ? initialRoom : (roomsList[0] || '');
 
-      setFormData({
-        name: '',
-        room: targetRoom,
-        date: targetDate,
-        startTime: '10:00',
-        endTime: '12:00',
-        maxAttendees: ''
-      });
+        setFormData({
+          name: '',
+          room: targetRoom,
+          date: targetDate,
+          startTime: '10:00',
+          endTime: '12:00',
+          maxAttendees: '',
+          activityType: 'open',
+          targetAudience: 'publico'
+        });
+        setPreAttendees([]);
+      }
+      setSelectedUserUid('');
+      setManualGuestName('');
       setErrorMsg('');
     }
-  }, [isOpen, initialDate, initialRoom, roomsList]);
+  }, [isOpen, initialDate, initialRoom, duplicateBookingData, roomsList]);
 
   if (!isOpen) return null;
 
@@ -87,28 +128,65 @@ export default function BookingModal({ isOpen, onClose, user, userRole, initialD
       endMin = timeToMinutes(parts[1]);
     } else if (b.time) {
       startMin = timeToMinutes(b.time);
-      endMin = startMin + 60; // 1 hora por defecto si es registro legado
+      endMin = startMin + 60;
     }
 
     return { startMin, endMin };
   };
 
   // Detectar conflictos de solapamiento de horario para la misma fecha y sala
-  const currentRoom = formData.room || (roomsList[0] || 'Estudio A');
+  const currentRoom = formData.room || (roomsList[0] || '');
   const currentStartMin = timeToMinutes(formData.startTime);
   const currentEndMin = timeToMinutes(formData.endTime);
 
   const conflicts = existingBookings.filter(b => {
     if (b.date !== formData.date || b.room !== currentRoom) return false;
-    
     const { startMin, endMin } = getBookingTimeRangeInMinutes(b);
-    
-    // Hay solapamiento si: nuevoInicio < existenteFin Y nuevoFin > existenteInicio
     return currentStartMin < endMin && currentEndMin > startMin;
   });
 
   const hasConflict = conflicts.length > 0;
   const isTimeOrderInvalid = currentEndMin <= currentStartMin;
+
+  // Añadir un usuario registrado a la lista de pre-apuntados
+  const handleAddRegisteredPreAttendee = () => {
+    if (!selectedUserUid) return;
+    const targetUser = registeredUsers.find(u => u.id === selectedUserUid);
+    if (!targetUser) return;
+
+    if (preAttendees.some(a => a.uid === targetUser.id)) {
+      alert("Este socio ya está añadido en la lista de asistentes.");
+      return;
+    }
+
+    setPreAttendees(prev => [...prev, {
+      uid: targetUser.id,
+      name: targetUser.displayName || targetUser.email,
+      isManual: false
+    }]);
+    setSelectedUserUid('');
+  };
+
+  // Añadir un participante manual / invitado sin app
+  const handleAddManualPreAttendee = () => {
+    if (!manualGuestName.trim()) return;
+    const trimmed = manualGuestName.trim();
+    if (preAttendees.some(a => a.name.toLowerCase() === trimmed.toLowerCase())) {
+      alert("Ya existe un participante con ese nombre en la lista.");
+      return;
+    }
+
+    setPreAttendees(prev => [...prev, {
+      uid: `manual_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      name: trimmed,
+      isManual: true
+    }]);
+    setManualGuestName('');
+  };
+
+  const handleRemovePreAttendee = (uidToRemove) => {
+    setPreAttendees(prev => prev.filter(a => a.uid !== uidToRemove));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -116,6 +194,11 @@ export default function BookingModal({ isOpen, onClose, user, userRole, initialD
 
     if (!userCanBook) {
       setErrorMsg('Debes tener el estatus de Socio o Administrador para crear reservas.');
+      return;
+    }
+
+    if (!currentRoom) {
+      setErrorMsg('Debes seleccionar o crear una sala primero.');
       return;
     }
 
@@ -133,8 +216,7 @@ export default function BookingModal({ isOpen, onClose, user, userRole, initialD
 
     const selectedRoom = currentRoom;
     const formattedTime = `${formData.startTime} - ${formData.endTime}`;
-    // Document ID determinista con fecha, sala y rango horario
-    const bookingId = `${selectedRoom.replace(/\s+/g, '_')}_${formData.date}_${formData.startTime.replace(':', '-')}_${formData.endTime.replace(':', '-')}`;
+    const bookingId = `${selectedRoom.replace(/\s+/g, '_')}_${formData.date}_${formData.startTime.replace(':', '-')}_${formData.endTime.replace(':', '-')}_${Date.now()}`;
     const bookingRef = doc(db, 'bookings', bookingId);
 
     const parsedMax = formData.maxAttendees ? parseInt(formData.maxAttendees, 10) : null;
@@ -154,6 +236,9 @@ export default function BookingModal({ isOpen, onClose, user, userRole, initialD
           endTime: formData.endTime,
           time: formattedTime,
           maxAttendees: parsedMax,
+          activityType: formData.activityType || 'open',
+          targetAudience: formData.targetAudience || 'publico',
+          attendees: preAttendees,
           userId: user ? user.uid : 'anonymous',
           userEmail: user ? user.email : '',
           userName: user ? (user.displayName || user.email) : 'Anónimo',
@@ -171,58 +256,66 @@ export default function BookingModal({ isOpen, onClose, user, userRole, initialD
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h2 className="title" style={{ fontSize: '1.5rem', margin: 0 }}>Nueva Reserva</h2>
+      <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '580px', width: '92%', maxHeight: '90vh', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
+          <h2 className="title" style={{ fontSize: '1.4rem', margin: 0 }}>
+            {duplicateBookingData ? '📑 Duplicar / Clonar Reserva' : 'Nueva Reserva'}
+          </h2>
           <button className="btn btn-secondary" style={{ padding: '0.2rem 0.6rem' }} onClick={onClose}>✕</button>
         </div>
 
         {!userCanBook ? (
           <div style={{ textAlign: 'center', padding: '1rem' }}>
             <p style={{ color: 'var(--danger)', marginBottom: '1.5rem' }}>
-              Tu estatus actual es <strong>"{getRoleLabel(userRole)}"</strong>. Solamente los miembros con estatus de <strong>Socio</strong> o <strong>Administrador</strong> pueden realizar reservas de estudios.
+              Tu estatus actual es <strong>"{getRoleLabel(userRole)}"</strong>. Solamente los miembros con estatus de <strong>Socio</strong> o <strong>Administrador</strong> pueden realizar reservas.
             </p>
             <button className="btn btn-secondary" onClick={onClose} style={{ width: '100%' }}>Entendido</button>
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
+            {/* Nombre del evento */}
             <div className="form-group">
-              <label>Nombre del Evento / Actividad</label>
+              <label>Nombre de la Actividad / Partida</label>
               <input 
                 type="text" 
                 className="form-input" 
-                placeholder="Ej. Partida de Catán / Warhammer / Retrato" 
+                placeholder="Ej. Partida de Rol D&D / Warhammer / Retrato" 
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
               />
             </div>
 
-            <div className="form-group">
-              <label>Sala / Estudio</label>
-              <select 
-                className="form-input"
-                value={formData.room || (roomsList[0] || 'Estudio A')}
-                onChange={(e) => setFormData({ ...formData, room: e.target.value })}
-              >
-                {roomsList.map(r => (
-                  <option key={r} value={r}>{r}</option>
-                ))}
-              </select>
+            {/* Sala y Fecha */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="form-group">
+                <label>Sala / Estudio</label>
+                <select 
+                  className="form-input"
+                  value={currentRoom}
+                  onChange={(e) => setFormData({ ...formData, room: e.target.value })}
+                  required
+                >
+                  {roomsList.map(r => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Fecha de la Reserva</label>
+                <input 
+                  type="date" 
+                  className="form-input" 
+                  style={{ width: '100%' }}
+                  value={formData.date}
+                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  required
+                />
+              </div>
             </div>
 
-            <div className="form-group">
-              <label>Fecha de la Reserva</label>
-              <input 
-                type="date" 
-                className="form-input" 
-                style={{ width: '100%' }}
-                value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                required
-              />
-            </div>
-
+            {/* Horario inicio / fin */}
             <div className="form-group" style={{ display: 'flex', gap: '1rem', flexDirection: 'row' }}>
               <div style={{ flex: 1 }}>
                 <label>Hora Inicio</label>
@@ -248,11 +341,145 @@ export default function BookingModal({ isOpen, onClose, user, userRole, initialD
               </div>
             </div>
 
-            {/* Alerta dinámica de Solapamiento / Conflicto en rojo */}
+            {/* Configuración Bloque 4: Tipo de Actividad & Público Objetivo */}
+            <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border-light)', padding: '1rem', borderRadius: '8px', marginBottom: '1.2rem' }}>
+              <h4 style={{ margin: '0 0 0.8rem 0', fontSize: '0.95rem', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                ⚙️ Ajustes de Asistencia y Accesibilidad
+              </h4>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                {/* Tipo de Actividad (Abierta vs Cerrada) */}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label style={{ fontSize: '0.8rem' }}>Modalidad de Plaza</label>
+                  <select 
+                    className="form-input"
+                    value={formData.activityType}
+                    onChange={(e) => setFormData({ ...formData, activityType: e.target.value })}
+                  >
+                    <option value="open">🔓 Abierta (Cualquiera puede unirse)</option>
+                    <option value="closed">🔒 Cerrada / Privada (Mesa reservada)</option>
+                  </select>
+                </div>
+
+                {/* Público Objetivo */}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label style={{ fontSize: '0.8rem' }}>Público Objetivo</label>
+                  <select 
+                    className="form-input"
+                    value={formData.targetAudience}
+                    onChange={(e) => setFormData({ ...formData, targetAudience: e.target.value })}
+                  >
+                    <option value="publico">🌐 Público General (Todos)</option>
+                    <option value="semisocios">🤝 Socios y Simpatizantes</option>
+                    <option value="socios">⭐ Exclusivo para Socios</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Límite de plazas */}
+            <div className="form-group">
+              <label>Aforo Máximo / Límite de Plazas (Opcional)</label>
+              <input 
+                type="number" 
+                min="1"
+                max="100"
+                className="form-input" 
+                placeholder="Ej. 6 (dejar vacío si no hay límite)" 
+                value={formData.maxAttendees}
+                onChange={(e) => setFormData({ ...formData, maxAttendees: e.target.value })}
+              />
+            </div>
+
+            {/* Bloque 4: Pre-apuntados (Asistentes Iniciales) */}
+            <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border-light)', padding: '1rem', borderRadius: '8px', marginBottom: '1.2rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem' }}>
+                <h4 style={{ margin: 0, fontSize: '0.95rem', color: '#ffffff' }}>
+                  👥 Pre-apuntados / Asistentes Iniciales ({preAttendees.length})
+                </h4>
+              </div>
+
+              {/* Controles para añadir socio app o invitado manual */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', marginBottom: '0.8rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <select 
+                    className="form-input"
+                    style={{ flex: 1, fontSize: '0.8rem' }}
+                    value={selectedUserUid}
+                    onChange={(e) => setSelectedUserUid(e.target.value)}
+                  >
+                    <option value="">-- Seleccionar Socio de la App --</option>
+                    {registeredUsers.map(u => (
+                      <option key={u.id} value={u.id}>{u.displayName || u.email}</option>
+                    ))}
+                  </select>
+                  <button 
+                    type="button" 
+                    className="btn btn-secondary" 
+                    style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
+                    onClick={handleAddRegisteredPreAttendee}
+                  >
+                    + Añadir Socio
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    style={{ flex: 1, fontSize: '0.8rem' }}
+                    placeholder="O escribe nombre de invitado manual (sin app)..." 
+                    value={manualGuestName}
+                    onChange={(e) => setManualGuestName(e.target.value)}
+                  />
+                  <button 
+                    type="button" 
+                    className="btn btn-secondary" 
+                    style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
+                    onClick={handleAddManualPreAttendee}
+                  >
+                    + Invitado
+                  </button>
+                </div>
+              </div>
+
+              {/* Lista de pre-apuntados agregados */}
+              {preAttendees.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.6rem' }}>
+                  {preAttendees.map(att => (
+                    <span 
+                      key={att.uid} 
+                      style={{ 
+                        background: att.isManual ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                        border: att.isManual ? '1px solid #f59e0b' : '1px solid #10b981',
+                        color: att.isManual ? '#f59e0b' : '#34d399',
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        fontSize: '0.78rem',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.4rem'
+                      }}
+                    >
+                      <span>{att.name} {att.isManual ? '(Invitado)' : ''}</span>
+                      <button 
+                        type="button" 
+                        onClick={() => handleRemovePreAttendee(att.uid)}
+                        style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, fontWeight: 'bold' }}
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Alerta dinámica de Conflicto */}
             {hasConflict && (
               <div style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid var(--danger)', borderRadius: '6px', padding: '0.8rem', marginBottom: '1rem' }}>
-                <div style={{ color: 'var(--danger)', fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  Conflicto de Horario Detectado
+                <div style={{ color: 'var(--danger)', fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '0.4rem' }}>
+                  ⚠️ Conflicto de Horario Detectado
                 </div>
                 {conflicts.map(c => {
                   const rangeDisplay = c.startTime && c.endTime ? `${c.startTime} - ${c.endTime}` : (c.time || '');
@@ -271,19 +498,6 @@ export default function BookingModal({ isOpen, onClose, user, userRole, initialD
               </div>
             )}
 
-            <div className="form-group">
-              <label>Límite de Asistentes / Plazas (Opcional)</label>
-              <input 
-                type="number" 
-                min="1"
-                max="100"
-                className="form-input" 
-                placeholder="Ej. 4 (dejar vacío si no hay límite)" 
-                value={formData.maxAttendees}
-                onChange={(e) => setFormData({ ...formData, maxAttendees: e.target.value })}
-              />
-            </div>
-            
             {errorMsg && (
               <div style={{ color: 'var(--danger)', fontSize: '0.9rem', marginBottom: '1rem', textAlign: 'center' }}>
                 {errorMsg}
@@ -300,7 +514,7 @@ export default function BookingModal({ isOpen, onClose, user, userRole, initialD
                 disabled={submitting || hasConflict || isTimeOrderInvalid} 
                 style={{ flex: 1, opacity: (hasConflict || isTimeOrderInvalid) ? 0.5 : 1 }}
               >
-                {submitting ? 'Guardando...' : 'Confirmar Reserva'}
+                {submitting ? 'Guardando...' : (duplicateBookingData ? 'Confirmar Reserva Clonada' : 'Confirmar Reserva')}
               </button>
             </div>
           </form>

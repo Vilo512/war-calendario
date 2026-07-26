@@ -20,10 +20,18 @@ export default function App() {
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [openIncidentsCount, setOpenIncidentsCount] = useState(0);
   const [bookingInitialData, setBookingInitialData] = useState({ date: '', room: '' });
+  const [duplicateBookingData, setDuplicateBookingData] = useState(null);
   const [customRoleLabels, setCustomRoleLabels] = useState(DEFAULT_ROLE_LABELS);
 
   const handleOpenBooking = (initialDate = '', initialRoom = '') => {
+    setDuplicateBookingData(null);
     setBookingInitialData({ date: initialDate, room: initialRoom });
+    setIsModalOpen(true);
+  };
+
+  const handleDuplicateBooking = (booking) => {
+    setDuplicateBookingData(booking);
+    setBookingInitialData({ date: booking.date || '', room: booking.room || '' });
     setIsModalOpen(true);
   };
 
@@ -204,7 +212,12 @@ export default function App() {
 
       <div className="grid-dashboard">
         <div>
-          <CalendarView user={user} userRole={userRole} onOpenBooking={handleOpenBooking} />
+          <CalendarView 
+            user={user} 
+            userRole={userRole} 
+            onOpenBooking={handleOpenBooking} 
+            onDuplicateBooking={handleDuplicateBooking}
+          />
         </div>
         <div style={{display: 'flex', flexDirection: 'column', gap: '1.5rem'}}>
           <CleaningCard user={user} userRole={userRole} />
@@ -213,11 +226,15 @@ export default function App() {
 
       <BookingModal 
         isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
+        onClose={() => {
+          setIsModalOpen(false);
+          setDuplicateBookingData(null);
+        }} 
         user={user} 
         userRole={userRole} 
         initialDate={bookingInitialData.date}
         initialRoom={bookingInitialData.room}
+        duplicateBookingData={duplicateBookingData}
       />
       
       {isAdminOpen && <AdminPanel isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} user={user} />}

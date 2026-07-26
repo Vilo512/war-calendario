@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, query, orderBy, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
-import { isAdminRole } from '../utils/roleUtils';
+import { isAdminRole, isSocio, isSemiSocio, canBook as canBookUser, ROLES } from '../utils/roleUtils';
 import AttendeesModal from './AttendeesModal';
 import RoomPickerModal from './RoomPickerModal';
 import SyncModal from './SyncModal';
 
-export default function CalendarView({ user, userRole, onOpenBooking }) {
+export default function CalendarView({ user, userRole, onOpenBooking, onDuplicateBooking }) {
   const [bookings, setBookings] = useState([]);
   const [roomsList, setRoomsList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -142,9 +142,29 @@ export default function CalendarView({ user, userRole, onOpenBooking }) {
     const isAttending = attendees.some(a => a.uid === user.uid);
     const maxCount = booking.maxAttendees || null;
 
-    if (!isAttending && maxCount && attendees.length >= maxCount) {
-      alert(`El evento ya ha alcanzado el límite máximo de ${maxCount} participantes.`);
-      return;
+    if (!isAttending) {
+      // 1. Validación de Actividad Cerrada
+      if (booking.activityType === 'closed') {
+        alert("🔒 Esta actividad es una mesa cerrada/privada por el organizador. Las plazas no están abiertas.");
+        return;
+      }
+
+      // 2. Validación de Público Objetivo (targetAudience)
+      if (booking.targetAudience === 'socios' && !isSocio(userRole)) {
+        alert("⭐ Esta actividad es exclusiva para miembros con estatus de Socio o Administrador.");
+        return;
+      }
+
+      if (booking.targetAudience === 'semisocios' && (!userRole || userRole < ROLES.SEMISOCIO)) {
+        alert("🤝 Esta actividad requiere estatus de Simpatizante (semisocio) o Socio.");
+        return;
+      }
+
+      // 3. Validación de Aforo Máximo
+      if (maxCount && attendees.length >= maxCount) {
+        alert(`El evento ya ha alcanzado el límite máximo de ${maxCount} participantes.`);
+        return;
+      }
     }
 
     const bookingRef = doc(db, 'bookings', booking.id);
@@ -314,6 +334,25 @@ export default function CalendarView({ user, userRole, onOpenBooking }) {
                                 <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                                   Por: {booking.userName || booking.userEmail || 'Socio'}
                                 </div>
+
+                                {/* Badges del Bloque 4 (Cerrada / Público Objetivo) */}
+                                <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', marginTop: '0.3rem' }}>
+                                  {booking.activityType === 'closed' && (
+                                    <span style={{ fontSize: '0.65rem', background: 'rgba(245, 158, 11, 0.2)', color: '#f59e0b', border: '1px solid #f59e0b', padding: '1px 5px', borderRadius: '4px', fontWeight: 'bold' }}>
+                                      🔒 CERRADA
+                                    </span>
+                                  )}
+                                  {booking.targetAudience === 'socios' && (
+                                    <span style={{ fontSize: '0.65rem', background: '#064e3b', color: '#34d399', border: '1px solid #10b981', padding: '1px 5px', borderRadius: '4px', fontWeight: 'bold' }}>
+                                      ⭐ SOLO SOCIOS
+                                    </span>
+                                  )}
+                                  {booking.targetAudience === 'semisocios' && (
+                                    <span style={{ fontSize: '0.65rem', background: 'rgba(59, 130, 246, 0.2)', color: '#60a5fa', border: '1px solid #3b82f6', padding: '1px 5px', borderRadius: '4px', fontWeight: 'bold' }}>
+                                      🤝 SOCIOS Y SIMPATIZANTES
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                                 <span className="booking-time" style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>
@@ -327,29 +366,41 @@ export default function CalendarView({ user, userRole, onOpenBooking }) {
                               </div>
                             </div>
 
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.4rem', borderTop: '1px solid rgba(255,255,255,0.08)', fontSize: '0.8rem' }}>
-                              <button
-                                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: 0, fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '3px' }}
-                                onClick={() => setSelectedBookingForAttendees(booking)}
-                                title="Ver lista completa de asistentes"
-                              >
-                                Asistentes: {attendees.length}{maxCount ? `/${maxCount}` : ''}
-                              </button>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.4rem', borderTop: '1px solid rgba(255,255,255,0.08)', fontSize: '0.8rem', gap: '0.5rem', flexWrap: 'wrap' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                <button
+                                  style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: 0, fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '3px' }}
+                                  onClick={() => setSelectedBookingForAttendees(booking)}
+                                  title="Ver lista completa de asistentes"
+                                >
+                                  Asistentes: {attendees.length}{maxCount ? `/${maxCount}` : ''}
+                                </button>
+
+                                {user && canBookUser(userRole) && (
+                                  <button
+                                    onClick={() => onDuplicateBooking && onDuplicateBooking(booking)}
+                                    style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.75rem', padding: 0, textDecoration: 'underline' }}
+                                    title="Duplicar / Clonar esta reserva en otra fecha u hora"
+                                  >
+                                    📋 Duplicar
+                                  </button>
+                                )}
+                              </div>
 
                               {user && (
                                 <button 
                                   onClick={() => handleToggleAttendance(booking)} 
-                                  disabled={!isAttending && isFull}
+                                  disabled={!isAttending && (isFull || booking.activityType === 'closed')}
                                   className={isAttending ? "btn btn-secondary" : "btn"}
                                   style={{ 
                                     padding: '0.2rem 0.5rem', 
                                     fontSize: '0.7rem', 
-                                    whitespace: 'nowrap',
-                                    opacity: (!isAttending && isFull) ? 0.6 : 1,
-                                    cursor: (!isAttending && isFull) ? 'not-allowed' : 'pointer'
+                                    whiteSpace: 'nowrap',
+                                    opacity: (!isAttending && (isFull || booking.activityType === 'closed')) ? 0.6 : 1,
+                                    cursor: (!isAttending && (isFull || booking.activityType === 'closed')) ? 'not-allowed' : 'pointer'
                                   }}
                                 >
-                                  {isAttending ? '✓ Me apunté' : (isFull ? 'Lleno' : '+ Apuntarme')}
+                                  {isAttending ? '✓ Me apunté' : (booking.activityType === 'closed' ? '🔒 Cerrada' : (isFull ? 'Lleno' : '+ Apuntarme'))}
                                 </button>
                               )}
                             </div>

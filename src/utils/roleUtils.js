@@ -101,3 +101,19 @@ export function isCleaningMember(role) {
   const code = normalizeRole(role);
   return code === ROLES.SOCIO || code === ROLES.ADMIN;
 }
+
+/**
+ * Verifica si un usuario es al menos Socio (Socio o Admin)
+ */
+export function isSocio(role) {
+  const code = normalizeRole(role);
+  return code === ROLES.SOCIO || code === ROLES.ADMIN;
+}
+
+/**
+ * Verifica si un usuario es al menos Semisocio (Semisocio, Socio o Admin)
+ */
+export function isSemiSocio(role) {
+  const code = normalizeRole(role);
+  return code === ROLES.SEMISOCIO || code === ROLES.SOCIO || code === ROLES.ADMIN;
+}
