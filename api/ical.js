@@ -1,4 +1,5 @@
-import admin from 'firebase-admin';
+import { initializeApp, cert, getApps } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 
 // Función para limpiar la clave privada de Firebase
 const parsePrivateKey = (key) => {
@@ -10,17 +11,17 @@ const parsePrivateKey = (key) => {
   return cleanKey.replace(/\\n/g, '\n');
 };
 
-// Inicializar Firebase Admin
-if (!admin.apps.length) {
+// Inicializar Firebase Admin usando módulos ESM
+if (!getApps().length) {
   try {
     if (process.env.FIREBASE_SERVICE_ACCOUNT) {
       const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
+      initializeApp({
+        credential: cert(serviceAccount)
       });
     } else {
-      admin.initializeApp({
-        credential: admin.credential.cert({
+      initializeApp({
+        credential: cert({
           projectId: process.env.FIREBASE_PROJECT_ID,
           clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
           privateKey: parsePrivateKey(process.env.FIREBASE_PRIVATE_KEY),
@@ -32,7 +33,8 @@ if (!admin.apps.length) {
   }
 }
 
-const db = admin.firestore();
+const db = getFirestore();
+
 
 // Escapar texto según especificación iCal RFC 5545
 const escapeICalText = (text) => {
