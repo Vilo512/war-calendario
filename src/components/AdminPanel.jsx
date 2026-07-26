@@ -262,6 +262,10 @@ export default function AdminPanel({ isOpen, onClose, user }) {
 
   // Cambiar rol de un usuario
   const handleRoleChange = async (targetUserId, newRoleValue) => {
+    if (user && user.uid === targetUserId && newRoleValue !== ROLES.ADMIN) {
+      alert("⚠️ No puedes quitarte a ti mismo el estatus de Administrador para evitar perder el acceso al panel.");
+      return;
+    }
     try {
       const numericRole = typeof newRoleValue === 'number' ? newRoleValue : parseInt(newRoleValue, 10);
       // Actualizacion optimista del estado local para respuesta UI instantanea
@@ -550,8 +554,10 @@ export default function AdminPanel({ isOpen, onClose, user }) {
                     <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Estatus:</label>
                     <select 
                       className="form-input" 
-                      style={{ padding: '0.4rem', width: 'auto' }}
+                      style={{ padding: '0.4rem', width: 'auto', opacity: (user && user.uid === u.id) ? 0.7 : 1 }}
                       value={normalizeRole(u.role)}
+                      disabled={user && user.uid === u.id}
+                      title={user && user.uid === u.id ? "Tu cuenta principal de Administrador" : "Cambiar estatus"}
                       onChange={(e) => handleRoleChange(u.id, parseInt(e.target.value, 10))}
                     >
                       <option value={ROLES.NO_SOCIO}>{roleLabelsState[ROLES.NO_SOCIO]}</option>
