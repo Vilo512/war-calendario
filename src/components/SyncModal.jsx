@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
-import { generateICalFromBookings, downloadICalFromBookings } from '../services/icalService';
 
 export default function SyncModal({ isOpen, onClose, visibleBookings = [], selectedRoomFilter = 'ALL', viewMode = 'month' }) {
-  const [downloaded, setDownloaded] = useState(false);
   const [copied, setCopied] = useState(false);
 
   if (!isOpen) return null;
@@ -10,13 +8,11 @@ export default function SyncModal({ isOpen, onClose, visibleBookings = [], selec
   const roomLabel = selectedRoomFilter === 'ALL' ? 'Todas las salas' : selectedRoomFilter;
   const viewLabel = viewMode === 'month' ? 'Mes actual' : 'Semana actual';
 
-  const icsContent = generateICalFromBookings(visibleBookings, `Reservas WAR - ${roomLabel}`);
-  const dataUri = 'data:text/calendar;charset=utf8,' + encodeURIComponent(icsContent || '');
-  const filename = `reservas_${roomLabel.toLowerCase().replace(/\s+/g, '_')}.ics`;
-
+  // Base URL para el feed en Vercel
+  const baseUrl = 'https://war-calendario.vercel.app/api/ical';
   const feedUrl = selectedRoomFilter === 'ALL'
-    ? 'https://geticalfeed-216846008793-uc.a.run.app'
-    : `https://geticalfeed-216846008793-uc.a.run.app?room=${encodeURIComponent(selectedRoomFilter)}`;
+    ? baseUrl
+    : `${baseUrl}?room=${encodeURIComponent(selectedRoomFilter)}`;
 
   const webcalUrl = feedUrl.replace(/^https:\/\//, 'webcal://');
 
@@ -56,10 +52,10 @@ export default function SyncModal({ isOpen, onClose, visibleBookings = [], selec
         {/* Resumen del filtro activo */}
         <div style={{ background: 'rgba(255,255,255,0.04)', padding: '0.9rem', borderRadius: '8px', marginBottom: '1rem', border: '1px solid var(--border-light)', fontSize: '0.85rem' }}>
           <div style={{ fontWeight: 'bold', color: 'var(--accent-primary)', marginBottom: '0.3rem' }}>
-            Filtro Activo: {viewLabel} ({roomLabel})
+            Filtro Activo: {roomLabel}
           </div>
           <div style={{ color: 'var(--text-secondary)' }}>
-            Se exportarán <strong style={{ color: '#ffffff' }}>{visibleBookings.length} reservas</strong> visibles actualmente en tu pantalla.
+            Se sincronizarán todas las reservas de <strong>{roomLabel}</strong> en tiempo real.
           </div>
         </div>
 
@@ -74,12 +70,11 @@ export default function SyncModal({ isOpen, onClose, visibleBookings = [], selec
                   iPhone / iPad / Apple Calendar
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                  Añade directamente los eventos a la App de Calendario de tu iPhone
+                  Sincronización en vivo con la app Calendario de iOS
                 </div>
               </div>
               <a 
-                href={dataUri}
-                download={filename}
+                href={webcalUrl}
                 className="btn" 
                 style={{ 
                   fontSize: '0.82rem', 
@@ -94,7 +89,7 @@ export default function SyncModal({ isOpen, onClose, visibleBookings = [], selec
                   boxShadow: '0 4px 12px rgba(255,255,255,0.2)'
                 }}
               >
-                Añadir a mi iPhone
+                Suscribirse en iPhone
               </a>
             </div>
           </div>
@@ -104,31 +99,31 @@ export default function SyncModal({ isOpen, onClose, visibleBookings = [], selec
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
               <div>
                 <div style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>Google Calendar</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Importa el archivo .ics en tu cuenta de Google</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Suscríbete desde tu cuenta de Google</div>
               </div>
               <button 
                 className="btn btn-secondary" 
                 style={{ fontSize: '0.78rem', padding: '0.35rem 0.7rem' }}
-                onClick={() => window.open('https://calendar.google.com/calendar/r/settings/export', '_blank')}
+                onClick={() => window.open(`https://calendar.google.com/calendar/r?cid=${encodeURIComponent(webcalUrl)}`, '_blank')}
               >
-                Abrir Google Cal
+                Suscribirse en Google
               </button>
             </div>
           </div>
 
-          {/* Opción Webcal / URL Feed (Nota sobre Blaze backend) */}
+          {/* Opción Webcal / URL Feed */}
           <div style={{ background: '#18181b', padding: '0.9rem', borderRadius: '8px', border: '1px solid var(--border-strong)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
               <div>
-                <div style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>Copiar URL webcal:// (Suscripción en vivo)</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Enlace de suscripción para Outlook / Escritorio</div>
+                <div style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>Copiar URL de Suscripción</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Para Outlook o configuración manual</div>
               </div>
               <button 
                 className="btn btn-secondary" 
                 style={{ fontSize: '0.78rem', padding: '0.35rem 0.7rem' }}
                 onClick={() => handleCopyFeed(webcalUrl)}
               >
-                {copied ? '✓ Copiado' : 'Copiar webcal'}
+                {copied ? '✓ Copiado' : 'Copiar Enlace'}
               </button>
             </div>
           </div>
@@ -136,10 +131,9 @@ export default function SyncModal({ isOpen, onClose, visibleBookings = [], selec
 
         {/* Nota aclaratoria de cuentas corporativas */}
         <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '0.8rem', borderRadius: '8px', marginBottom: '1.2rem', fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
-          <strong style={{ color: 'var(--danger)', display: 'block', marginBottom: '0.2rem' }}>Nota importante sobre suscripciones por URL y Cuentas Corporativas:</strong>
-          • En <strong>iPhone</strong>, usa el botón blanco de arriba <strong>"Añadir a mi iPhone"</strong> para volcar los eventos a tu teléfono sin necesidad de servidor.<br/>
-          • Las cuentas corporativas de Microsoft 365 (Generalitat/Administración Pública) bloquean URLs de suscripción externas por políticas de seguridad.<br/>
-          • El servidor de suscripción automática por URL exige plan Blaze en Firebase. La exportación directa mediante el botón superior es 100% gratuita y funcional.
+          <strong style={{ color: 'var(--danger)', display: 'block', marginBottom: '0.2rem' }}>Nota importante sobre sincronización:</strong>
+          • Las reservas nuevas o modificadas pueden tardar hasta 1 hora en aparecer en tu calendario, dependiendo de la frecuencia de actualización de tu aplicación (Google Calendar o Apple Calendar).<br/>
+          • Si usas una cuenta de Microsoft 365 (Generalitat/Administración Pública), es posible que bloqueen URLs de suscripción externas por políticas de seguridad corporativas.
         </div>
 
         <div style={{ textAlign: 'right' }}>
@@ -151,3 +145,4 @@ export default function SyncModal({ isOpen, onClose, visibleBookings = [], selec
     </div>
   );
 }
+
