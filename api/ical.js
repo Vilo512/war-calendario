@@ -13,11 +13,13 @@ const parsePrivateKey = (key) => {
   return cleanKey.replace(/\\n/g, '\n');
 };
 
+const adminApp = admin.apps ? admin : (admin.default || admin);
+
 function getDb() {
-  if (!admin.apps.length) {
+  if (!adminApp.apps || !adminApp.apps.length) {
     if (process.env.FIREBASE_SERVICE_ACCOUNT) {
       const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-      admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+      adminApp.initializeApp({ credential: adminApp.credential.cert(serviceAccount) });
     } else {
       const projectId = process.env.FIREBASE_PROJECT_ID;
       const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
@@ -27,13 +29,14 @@ function getDb() {
         throw new Error(`Configuración de Firebase incompleta en Vercel. Faltan variables: projectId=${!!projectId}, clientEmail=${!!clientEmail}, privateKey=${!!privateKey}`);
       }
       
-      admin.initializeApp({
-        credential: admin.credential.cert({ projectId, clientEmail, privateKey })
+      adminApp.initializeApp({
+        credential: adminApp.credential.cert({ projectId, clientEmail, privateKey })
       });
     }
   }
-  return admin.firestore();
+  return adminApp.firestore();
 }
+
 
 
 // Escapar texto según especificación iCal RFC 5545
