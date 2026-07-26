@@ -1,8 +1,7 @@
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 
-const rawAdmin = require('firebase-admin');
-const admin = rawAdmin.default || rawAdmin;
+const admin = require('firebase-admin');
 
 // Función para limpiar la clave privada de Firebase
 const parsePrivateKey = (key) => {
@@ -15,18 +14,10 @@ const parsePrivateKey = (key) => {
 };
 
 function getDb() {
-  const apps = admin.apps || (rawAdmin.apps) || [];
-  if (!apps.length) {
-    const certFn = (admin.credential && admin.credential.cert) || (rawAdmin.credential && rawAdmin.credential.cert);
-    const initFn = admin.initializeApp || rawAdmin.initializeApp;
-
-    if (!certFn || !initFn) {
-      throw new Error(`Error de exportación de firebase-admin: certFn=${!!certFn}, initFn=${!!initFn}`);
-    }
-
+  if (!admin.apps.length) {
     if (process.env.FIREBASE_SERVICE_ACCOUNT) {
       const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-      initFn.call(admin, { credential: certFn(serviceAccount) });
+      admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
     } else {
       const projectId = process.env.FIREBASE_PROJECT_ID;
       const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
@@ -36,14 +27,14 @@ function getDb() {
         throw new Error(`Configuración de Firebase incompleta en Vercel. Faltan variables: projectId=${!!projectId}, clientEmail=${!!clientEmail}, privateKey=${!!privateKey}`);
       }
       
-      initFn.call(admin, {
-        credential: certFn({ projectId, clientEmail, privateKey })
+      admin.initializeApp({
+        credential: admin.credential.cert({ projectId, clientEmail, privateKey })
       });
     }
   }
-  const firestoreFn = admin.firestore || rawAdmin.firestore;
-  return firestoreFn.call(admin);
+  return admin.firestore();
 }
+
 
 
 
