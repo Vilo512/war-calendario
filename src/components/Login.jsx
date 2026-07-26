@@ -3,6 +3,8 @@ import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfi
 import { doc, setDoc, getDocs, collection } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
 
+import { ROLES } from '../utils/roleUtils';
+
 export default function Login() {
   const [isLogin, setIsLogin] = useState(true);
   const [isReset, setIsReset] = useState(false);
@@ -39,7 +41,7 @@ export default function Login() {
           uid: userCredential.user.uid,
           email: userCredential.user.email,
           displayName: name || userCredential.user.email,
-          role: isFirstUser ? 'admin' : 'no socio',
+          role: isFirstUser ? ROLES.ADMIN : ROLES.NO_SOCIO,
           createdAt: new Date()
         });
       }

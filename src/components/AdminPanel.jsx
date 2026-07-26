@@ -373,6 +373,28 @@ export default function AdminPanel({ isOpen, onClose, user }) {
     }
   };
 
+  const handleDeleteUserPermanent = async (targetUid, targetName) => {
+    if (user && user.uid === targetUid) {
+      alert("No puedes darte de baja a ti mismo desde el panel.");
+      return;
+    }
+    if (window.confirm(`⚠️ ¿Estás SEGURO de que deseas dar de baja PERMANENTEMENTE a "${targetName}"?\n\nEsta acción eliminará su cuenta de acceso y su perfil.`)) {
+      try {
+        await deleteDoc(doc(db, 'users', targetUid));
+        await fetch('/api/delete-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ targetUid })
+        });
+        setMsg(`✓ El usuario ${targetName} ha sido dado de baja permanentemente.`);
+        setTimeout(() => setMsg(''), 4000);
+      } catch (err) {
+        console.error("Error al dar de baja usuario:", err);
+        setMsg('Error dando de baja al usuario: ' + err.message);
+      }
+    }
+  };
+
   const sociosAndAdmins = users.filter(u => isCleaningMember(u.role));
 
   return (
@@ -522,7 +544,7 @@ export default function AdminPanel({ isOpen, onClose, user }) {
                     <div style={{ fontWeight: 'bold' }}>{u.displayName || u.email}</div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{u.email}</div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
                     <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Estatus:</label>
                     <select 
                       className="form-input" 
@@ -535,6 +557,26 @@ export default function AdminPanel({ isOpen, onClose, user }) {
                       <option value={ROLES.SOCIO}>{roleLabelsState[ROLES.SOCIO]}</option>
                       <option value={ROLES.ADMIN}>{roleLabelsState[ROLES.ADMIN]}</option>
                     </select>
+                    {(!user || user.uid !== u.id) && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteUserPermanent(u.id, u.displayName || u.email)}
+                        style={{
+                          background: 'rgba(239, 68, 68, 0.15)',
+                          border: '1px solid #ef4444',
+                          color: '#f87171',
+                          padding: '0.35rem 0.7rem',
+                          borderRadius: '4px',
+                          fontSize: '0.75rem',
+                          fontWeight: '700',
+                          cursor: 'pointer',
+                          marginLeft: '0.2rem'
+                        }}
+                        title="Eliminar usuario permanentemente de la plataforma y de Firebase Auth"
+                      >
+                        Dar de baja
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
