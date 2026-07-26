@@ -1,7 +1,8 @@
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 
-const admin = require('firebase-admin');
+const rawAdmin = require('firebase-admin');
+const admin = rawAdmin.apps ? rawAdmin : (rawAdmin.default || rawAdmin);
 
 // Función para limpiar la clave privada de Firebase
 const parsePrivateKey = (key) => {
@@ -14,7 +15,8 @@ const parsePrivateKey = (key) => {
 };
 
 function getDb() {
-  if (!admin.apps.length) {
+  const apps = admin.apps || (rawAdmin && rawAdmin.apps) || [];
+  if (!apps || !apps.length) {
     if (process.env.FIREBASE_SERVICE_ACCOUNT) {
       const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
       admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
@@ -34,6 +36,7 @@ function getDb() {
   }
   return admin.firestore();
 }
+
 
 
 
