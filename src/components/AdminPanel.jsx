@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, doc, updateDoc, setDoc, deleteDoc, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, updateDoc, setDoc, deleteDoc, getDoc, getDocs, query } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { 
   ROLES, 
@@ -41,6 +41,68 @@ export default function AdminPanel({ isOpen, onClose, user }) {
   const [ancPriority, setAncPriority] = useState('NORMAL');
   const [ancDuration, setAncDuration] = useState('0'); // '0' = permanente, '1', '3', '7', '14', '30'
   const [msg, setMsg] = useState('');
+
+  const [purgeMonth, setPurgeMonth] = useState(String(new Date().getMonth() + 1).padStart(2, '0'));
+  const [purgeYear, setPurgeYear] = useState(String(new Date().getFullYear()));
+
+  const monthOptions = [
+    { value: '01', name: 'Enero' },
+    { value: '02', name: 'Febrero' },
+    { value: '03', name: 'Marzo' },
+    { value: '04', name: 'Abril' },
+    { value: '05', name: 'Mayo' },
+    { value: '06', name: 'Junio' },
+    { value: '07', name: 'Julio' },
+    { value: '08', name: 'Agosto' },
+    { value: '09', name: 'Septiembre' },
+    { value: '10', name: 'Octubre' },
+    { value: '11', name: 'Noviembre' },
+    { value: '12', name: 'Diciembre' }
+  ];
+
+  const handlePurgeMonthBookings = async () => {
+    const targetPrefix = `${purgeYear}-${purgeMonth}`;
+    const monthName = monthOptions.find(m => m.value === purgeMonth)?.name || purgeMonth;
+    
+    if (window.confirm(`⚠️ ¿Estás seguro de que deseas eliminar TODAS las reservas del mes de ${monthName} de ${purgeYear}?`)) {
+      try {
+        const snapshot = await getDocs(collection(db, 'bookings'));
+        let count = 0;
+        const deletePromises = [];
+        snapshot.forEach((docSnap) => {
+          const d = docSnap.data();
+          if (d.date && String(d.date).startsWith(targetPrefix)) {
+            deletePromises.push(deleteDoc(doc(db, 'bookings', docSnap.id)));
+            count++;
+          }
+        });
+        await Promise.all(deletePromises);
+        setMsg(`✓ Se han eliminado ${count} reserva(s) de ${monthName} ${purgeYear}.`);
+        setTimeout(() => setMsg(''), 4000);
+      } catch (err) {
+        setMsg('Error limpiando reservas del mes: ' + err.message);
+      }
+    }
+  };
+
+  const handlePurgeAllBookings = async () => {
+    if (window.confirm('🚨 ¿Estás SEGURO de que deseas vaciar ABSOLUTAMENTE TODAS las reservas del calendario?')) {
+      try {
+        const snapshot = await getDocs(collection(db, 'bookings'));
+        let count = 0;
+        const deletePromises = [];
+        snapshot.forEach((docSnap) => {
+          deletePromises.push(deleteDoc(doc(db, 'bookings', docSnap.id)));
+          count++;
+        });
+        await Promise.all(deletePromises);
+        setMsg(`✓ Se han eliminado TODAS las reservas del sistema (${count} en total).`);
+        setTimeout(() => setMsg(''), 4000);
+      } catch (err) {
+        setMsg('Error vaciando el calendario: ' + err.message);
+      }
+    }
+  };
 
   const [roleLabelsState, setRoleLabelsState] = useState(DEFAULT_ROLE_LABELS);
 
@@ -791,6 +853,63 @@ export default function AdminPanel({ isOpen, onClose, user }) {
                   </div>
                 ))
               )}
+            </div>
+
+            {/* Sección Mantenimiento de Reservas */}
+            <div style={{ marginTop: '2.5rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1.5rem' }}>
+              <h3 style={{ fontSize: '1.1rem', marginBottom: '0.6rem', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                🗑️ Mantenimiento y Purga de Reservas
+              </h3>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+                Borra reservas masivamente por mes cuando realices pruebas o cambies la configuración de salas:
+              </p>
+
+              <div style={{ background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '1.2rem', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Seleccionar Mes:</label>
+                  <select 
+                    className="form-input" 
+                    style={{ padding: '0.4rem', width: 'auto' }}
+                    value={purgeMonth}
+                    onChange={(e) => setPurgeMonth(e.target.value)}
+                  >
+                    {monthOptions.map(m => (
+                      <option key={m.value} value={m.value}>{m.name}</option>
+                    ))}
+                  </select>
+                  <select 
+                    className="form-input" 
+                    style={{ padding: '0.4rem', width: 'auto' }}
+                    value={purgeYear}
+                    onChange={(e) => setPurgeYear(e.target.value)}
+                  >
+                    <option value="2025">2025</option>
+                    <option value="2026">2026</option>
+                    <option value="2027">2027</option>
+                  </select>
+
+                  <button 
+                    className="btn" 
+                    style={{ background: 'var(--danger)', borderColor: 'var(--danger)', fontSize: '0.8rem', padding: '0.45rem 0.9rem', color: '#ffffff', fontWeight: 'bold' }}
+                    onClick={handlePurgeMonthBookings}
+                  >
+                    Borrar Reservas del Mes
+                  </button>
+                </div>
+
+                <div style={{ borderTop: '1px dashed rgba(255,255,255,0.1)', paddingTop: '0.8rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                    ¿Necesitas vaciar el calendario por completo?
+                  </span>
+                  <button 
+                    className="btn btn-secondary" 
+                    style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem', color: 'var(--danger)', borderColor: 'var(--danger)' }}
+                    onClick={handlePurgeAllBookings}
+                  >
+                    Vaciar Todo el Calendario
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
