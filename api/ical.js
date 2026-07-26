@@ -11,30 +11,27 @@ const parsePrivateKey = (key) => {
   return cleanKey.replace(/\\n/g, '\n');
 };
 
-// Inicializar Firebase Admin usando módulos ESM
-if (!getApps().length) {
-  try {
+function getDb() {
+  if (!getApps().length) {
     if (process.env.FIREBASE_SERVICE_ACCOUNT) {
       const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-      initializeApp({
-        credential: cert(serviceAccount)
-      });
+      initializeApp({ credential: cert(serviceAccount) });
     } else {
+      const projectId = process.env.FIREBASE_PROJECT_ID;
+      const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+      const privateKey = parsePrivateKey(process.env.FIREBASE_PRIVATE_KEY);
+      
+      if (!projectId || !clientEmail || !privateKey) {
+        throw new Error(`Configuración de Firebase incompleta en Vercel. Faltan variables: projectId=${!!projectId}, clientEmail=${!!clientEmail}, privateKey=${!!privateKey}`);
+      }
+      
       initializeApp({
-        credential: cert({
-          projectId: process.env.FIREBASE_PROJECT_ID,
-          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-          privateKey: parsePrivateKey(process.env.FIREBASE_PRIVATE_KEY),
-        })
+        credential: cert({ projectId, clientEmail, privateKey })
       });
     }
-  } catch (error) {
-    console.error('Firebase Admin initialization error:', error);
   }
+  return getFirestore();
 }
-
-const db = getFirestore();
-
 
 // Escapar texto según especificación iCal RFC 5545
 const escapeICalText = (text) => {
@@ -59,7 +56,9 @@ export default async function handler(req, res) {
   const { room } = req.query;
 
   try {
+    const db = getDb();
     let queryRef = db.collection('bookings');
+
     
     if (room && room !== 'Todas' && room !== 'ALL') {
       queryRef = queryRef.where('room', '==', room);
