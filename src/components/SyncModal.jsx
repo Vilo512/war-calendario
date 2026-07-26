@@ -145,24 +145,15 @@ export default function SyncModal({ isOpen, onClose, visibleBookings = [], selec
         </div>
 
         {/* Nota aclaratoria de cuentas corporativas */}
-        <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '0.8rem', borderRadius: '8px', marginBottom: '1.2rem', fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+        <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '0.8rem', borderRadius: '8px', fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
           <strong style={{ color: 'var(--danger)', display: 'block', marginBottom: '0.2rem' }}>Nota importante sobre sincronización:</strong>
           • Las reservas nuevas o modificadas pueden tardar en aparecer según la frecuencia de refresco de tu app (Google/Apple).<br/>
           • Si usas una cuenta corporativa de Microsoft 365, su política de seguridad puede bloquear suscripciones externas.
-        </div>
-
-        <div style={{ textAlign: 'center', marginTop: '1rem' }}>
-          <button 
-            className="btn btn-secondary" 
-            style={{ width: '100%', padding: '0.6rem 1rem', fontSize: '0.9rem', fontWeight: 'bold' }} 
-            onClick={onClose}
-          >
-            Cerrar Modal
-          </button>
         </div>
       </div>
     </div>
   );
 }
+
 
 
