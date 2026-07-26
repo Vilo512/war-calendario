@@ -119,7 +119,7 @@ export default function SyncModal({ isOpen, onClose, visibleBookings = [], selec
               <button 
                 className="btn btn-secondary" 
                 style={{ fontSize: '0.78rem', padding: '0.35rem 0.7rem' }}
-                onClick={() => window.open(`https://calendar.google.com/calendar/r?cid=${encodeURIComponent(webcalUrl)}`, '_blank')}
+                onClick={() => window.open(`https://calendar.google.com/calendar/r?cid=${encodeURIComponent(feedUrl)}`, '_blank')}
               >
                 Suscribirse en Google
               </button>
@@ -136,7 +136,7 @@ export default function SyncModal({ isOpen, onClose, visibleBookings = [], selec
               <button 
                 className="btn btn-secondary" 
                 style={{ fontSize: '0.78rem', padding: '0.35rem 0.7rem' }}
-                onClick={() => handleCopyFeed(webcalUrl)}
+                onClick={() => handleCopyFeed(feedUrl)}
               >
                 {copied ? '✓ Copiado' : 'Copiar Enlace'}
               </button>
