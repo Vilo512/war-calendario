@@ -46,10 +46,18 @@ const escapeICalText = (text) => {
     .replace(/\n/g, '\\n');
 };
 
-// Formatear fecha a YYYYMMDDTHHmmssZ
-const formatICalDate = (date) => {
-  if (!date || isNaN(date.getTime())) return '';
-  return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+// Parsear fecha y hora de forma ultra-robusta (soporta guiones y dos puntos en las horas)
+const parseDate = (dateStr, timeStr) => {
+  if (!dateStr) return new Date();
+  const [year, month, day] = String(dateStr).split(/[-/]/).map(Number);
+  let hours = 10, minutes = 0;
+  if (timeStr) {
+    const parts = String(timeStr).split(/[-:]/).map(Number);
+    if (parts.length >= 1 && !isNaN(parts[0])) hours = parts[0];
+    if (parts.length >= 2 && !isNaN(parts[1])) minutes = parts[1];
+  }
+  const d = new Date(year, (month || 1) - 1, day || 1, hours, minutes, 0, 0);
+  return isNaN(d.getTime()) ? new Date() : d;
 };
 
 export default async function handler(req, res) {
@@ -62,7 +70,6 @@ export default async function handler(req, res) {
     const db = getDb();
     let queryRef = db.collection('bookings');
 
-    
     if (room && room !== 'Todas' && room !== 'ALL') {
       queryRef = queryRef.where('room', '==', room);
     }
@@ -81,26 +88,9 @@ export default async function handler(req, res) {
     snapshot.forEach(docSnap => {
       const data = { id: docSnap.id, ...docSnap.data() };
       
-      let startTime = new Date();
-      if (data.date && data.startTimeStr) {
-        const [year, month, day] = data.date.split('-').map(Number);
-        const [hours, minutes] = data.startTimeStr.split(':').map(Number);
-        startTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
-      } else if (data.date && data.time) {
-        const [year, month, day] = data.date.split('-').map(Number);
-        const [hours, minutes] = data.time.split(':').map(Number);
-        startTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
-      } else if (data.date) {
-        const [year, month, day] = data.date.split('-').map(Number);
-        startTime = new Date(year, month - 1, day, 10, 0, 0, 0);
-      }
+      const startTime = parseDate(data.date, data.startTimeStr || data.time);
+      const endTime = data.endTimeStr ? parseDate(data.date, data.endTimeStr) : new Date(startTime.getTime() + 2 * 60 * 60 * 1000);
 
-      let endTime = new Date(startTime.getTime() + 2 * 60 * 60 * 1000);
-      if (data.date && data.endTimeStr) {
-        const [year, month, day] = data.date.split('-').map(Number);
-        const [hours, minutes] = data.endTimeStr.split(':').map(Number);
-        endTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
-      }
 
       const eventTitle = escapeICalText(data.name || data.title || "Reserva WAR");
       const roomName = escapeICalText(data.room || "Sala Principal");
