@@ -225,16 +225,34 @@ export default function CalendarView({ user, userRole, onOpenBooking }) {
             </button>
           </div>
 
-          {/* Grid de Columnas por Sala (2 o 3 columnas) */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: `repeat(auto-fit, minmax(${availableRooms.length > 2 ? '240px' : '280px'}, 1fr))`,
-            gap: '1rem',
-            alignItems: 'start'
-          }}>
-            {availableRooms.map((roomName) => {
-              const roomBookings = dayBookings.filter(b => b.room === roomName);
-              const isOccupied = roomBookings.length > 0;
+          {/* Grid de Columnas por Sala (incluyendo salas huérfanas con reservas activas) */}
+          {(() => {
+            const orphanRooms = Array.from(new Set(
+              dayBookings
+                .filter(b => b.room && !availableRooms.includes(b.room))
+                .map(b => b.room)
+            ));
+            const displayRooms = [...availableRooms, ...orphanRooms];
+
+            if (displayRooms.length === 0) {
+              return (
+                <div style={{ textAlign: 'center', padding: '2rem 1rem', background: '#141417', border: '1px dashed var(--border-light)', borderRadius: '8px', color: 'var(--text-secondary)' }}>
+                  <p style={{ margin: 0, fontSize: '0.9rem' }}>No hay salas configuradas en el sistema. Un administrador debe añadir salas desde el Panel de Administración.</p>
+                </div>
+              );
+            }
+
+            return (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: `repeat(auto-fit, minmax(${displayRooms.length > 2 ? '240px' : '280px'}, 1fr))`,
+                gap: '1rem',
+                alignItems: 'start'
+              }}>
+                {displayRooms.map((roomName) => {
+                  const isOrphan = !availableRooms.includes(roomName);
+                  const roomBookings = dayBookings.filter(b => b.room === roomName);
+                  const isOccupied = roomBookings.length > 0;
 
               return (
                 <div 
@@ -251,8 +269,9 @@ export default function CalendarView({ user, userRole, onOpenBooking }) {
                 >
                   {/* Encabezado de la columna de sala con distintivo Ocupada / Libre */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '0.6rem' }}>
-                    <span style={{ fontWeight: 'bold', fontSize: '1.05rem', color: '#ffffff' }}>
+                    <span style={{ fontWeight: 'bold', fontSize: '1.05rem', color: isOrphan ? '#f59e0b' : '#ffffff', display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
                       {roomName}
+                      {isOrphan && <span style={{ fontSize: '0.7rem', color: '#f59e0b', border: '1px solid #f59e0b', padding: '1px 5px', borderRadius: '4px' }}>(Descatalogada)</span>}
                     </span>
                     {isOccupied ? (
                       <span style={{ fontSize: '0.75rem', background: 'rgba(239, 68, 68, 0.2)', color: 'var(--danger)', border: '1px solid var(--danger)', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold' }}>
@@ -351,6 +370,8 @@ export default function CalendarView({ user, userRole, onOpenBooking }) {
               );
             })}
           </div>
+          );
+        })()}
         </div>
       </div>
     );
