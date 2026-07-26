@@ -18,14 +18,12 @@ export default function CalendarView({ user, userRole, onOpenBooking }) {
   const [isRoomPickerOpen, setIsRoomPickerOpen] = useState(false);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
 
-  const defaultRooms = ['Estudio A', 'Estudio B', 'Sala Conferencias'];
-
-  // Cargar salas dinámicas de Firestore
+  // Cargar salas dinámicas de Firestore (sin salas por defecto)
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'rooms'), (snapshot) => {
       const rList = [];
       snapshot.forEach(d => rList.push(d.data().name));
-      setRoomsList(rList.length > 0 ? rList : defaultRooms);
+      setRoomsList(rList);
     });
     return () => unsub();
   }, []);
@@ -50,7 +48,7 @@ export default function CalendarView({ user, userRole, onOpenBooking }) {
     }
   }, []);
 
-  const availableRooms = roomsList.length > 0 ? roomsList : defaultRooms;
+  const availableRooms = roomsList;
 
   const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
   const getFirstDayOfMonth = (year, month) => {
@@ -223,7 +221,7 @@ export default function CalendarView({ user, userRole, onOpenBooking }) {
               style={{ fontSize: '0.8rem', padding: '0.3rem 0.8rem' }}
               onClick={() => onOpenBooking && onOpenBooking(selectedStr, availableRooms[0])}
             >
-              + Nueva Reserva Este Día
+              + Nueva Reserva
             </button>
           </div>
 
