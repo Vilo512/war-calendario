@@ -7,8 +7,9 @@ export default function SyncModal({ isOpen, onClose, visibleBookings = [], selec
 
   const roomLabel = selectedRoomFilter === 'ALL' ? 'Todas las salas' : selectedRoomFilter;
 
-  // Base URL para el feed en Vercel
-  const baseUrl = 'https://war-calendario.vercel.app/api/ical';
+  // Base URL para el feed iCal (dinámico según el dominio actual)
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://warlendario.vercel.app';
+  const baseUrl = `${origin}/api/ical`;
   const feedUrl = selectedRoomFilter === 'ALL'
     ? baseUrl
     : `${baseUrl}?room=${encodeURIComponent(selectedRoomFilter)}`;
