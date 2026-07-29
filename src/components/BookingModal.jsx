@@ -252,7 +252,7 @@ export default function BookingModal({
       
       // Enviar notificación a WhatsApp de forma asíncrona (fire and forget)
       if (formData.announceOnWhatsApp) {
-        const msg = `📢 *${formData.name.trim()}*\n📅 *${formData.date}* - ⏰ *${formData.startTime}* a *${formData.endTime}*\n📍 *${selectedRoom}*\n👥 *${parsedMax ? parsedMax + ' plazas' : 'Sin límite'}*\n🔗 *Apúntate en la App:* https://warcalendario.vercel.app`;
+        const msg = `📢 *${formData.name.trim()}*\n📅 *${formData.date}* - ⏰ *${formData.startTime}* a *${formData.endTime}*\n📍 *${selectedRoom}*\n👥 *${parsedMax ? parsedMax + ' plazas' : 'Sin límite'}*\n🔗 *Apúntate en la App:* https://war-calendario.web.app`;
         
         fetch('/api/whatsapp', {
           method: 'POST',
