@@ -23,6 +23,18 @@ export default function App() {
   const [bookingInitialData, setBookingInitialData] = useState({ date: '', room: '' });
   const [duplicateBookingData, setDuplicateBookingData] = useState(null);
   const [customRoleLabels, setCustomRoleLabels] = useState(DEFAULT_ROLE_LABELS);
+  const [currentPath, setCurrentPath] = useState(window.location.pathname);
+
+  const navigateTo = (path) => {
+    window.history.pushState({}, '', path);
+    setCurrentPath(path);
+  };
+
+  useEffect(() => {
+    const handlePopState = () => setCurrentPath(window.location.pathname);
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   const handleOpenBooking = (initialDate = '', initialRoom = '') => {
     setDuplicateBookingData(null);
@@ -109,11 +121,11 @@ export default function App() {
   const roleLabel = getRoleLabel(userRole, customRoleLabels);
 
   // Enrutamiento nativo muy simple
-  if (window.location.pathname === '/analytics') {
+  if (currentPath === '/analytics') {
     return (
       <div className="app-container">
         <header className="header">
-          <div className="header-brand" style={{ display: 'flex', alignItems: 'center', gap: '1.2rem', cursor: 'pointer' }} onClick={() => window.location.href = '/'}>
+          <div className="header-brand" style={{ display: 'flex', alignItems: 'center', gap: '1.2rem', cursor: 'pointer' }} onClick={() => navigateTo('/')}>
             <img 
               src="/logo-circulo.png" 
               alt="Logo W.A.R." 
@@ -193,7 +205,7 @@ export default function App() {
               <>
                 <button 
                   className="btn btn-secondary" 
-                  onClick={() => window.location.href = '/analytics'} 
+                  onClick={() => navigateTo('/analytics')} 
                   style={{ borderColor: 'var(--accent-secondary)' }}
                 >
                   📊 Analíticas
