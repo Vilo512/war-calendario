@@ -23,8 +23,14 @@ export default function Login() {
 
     try {
       if (isReset) {
-        await sendPasswordResetEmail(auth, email);
-        setInfoMsg('¡Correo de recuperación enviado! Revisa tu bandeja de entrada.');
+        try {
+          // Intentar primero con la URL de retorno del sitio actual
+          await sendPasswordResetEmail(auth, email, { url: window.location.origin });
+        } catch (actionErr) {
+          // Fallback a envio estándar de Firebase si la URL de origen no está autorizada en la consola
+          await sendPasswordResetEmail(auth, email);
+        }
+        setInfoMsg('✉️ ¡Correo de recuperación enviado! Revisa tu bandeja de entrada y la carpeta de SPAM / Correo No Deseado.');
       } else if (isLogin) {
         await signInWithEmailAndPassword(auth, email, password);
       } else {
@@ -53,6 +59,10 @@ export default function Login() {
         setErrorMsg('Contraseña incorrecta.');
       } else if (error.code === 'auth/email-already-in-use') {
         setErrorMsg('Este correo ya está registrado.');
+      } else if (error.code === 'auth/invalid-email') {
+        setErrorMsg('El formato del correo electrónico no es válido.');
+      } else if (error.code === 'auth/too-many-requests') {
+        setErrorMsg('Demasiados intentos fallidos. Inténtalo más tarde.');
       } else {
         setErrorMsg(error.message);
       }
