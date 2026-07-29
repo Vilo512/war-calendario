@@ -199,6 +199,77 @@ export default function CalendarView({ user, userRole, onOpenBooking, onDuplicat
     }
   };
 
+  // Helpers para franjas horarias e iconos
+  const parseTimeToMinutes = (timeStr) => {
+    if (!timeStr) return null;
+    const match = String(timeStr).trim().match(/^(\d{1,2}):(\d{2})$/);
+    if (!match) return null;
+    const hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    return hours * 60 + minutes;
+  };
+
+  const getDayTimeSlots = (dateBookings) => {
+    const slots = { morning: false, afternoon: false, night: false };
+    
+    dateBookings.forEach(booking => {
+      let startMin = parseTimeToMinutes(booking.startTime);
+      let endMin = parseTimeToMinutes(booking.endTime);
+      
+      if (startMin === null && booking.time) {
+        const lower = booking.time.toLowerCase();
+        if (lower.includes('mañana')) slots.morning = true;
+        if (lower.includes('tarde')) slots.afternoon = true;
+        if (lower.includes('noche')) slots.night = true;
+        return;
+      }
+
+      if (startMin !== null && endMin !== null) {
+        if (endMin <= startMin) {
+          endMin += 24 * 60;
+        }
+        // Mañana: 08:00 (480m) - 15:00 (900m)
+        if (startMin < 900 && endMin > 480) slots.morning = true;
+        // Tarde: 15:00 (900m) - 21:00 (1260m)
+        if (startMin < 1260 && endMin > 900) slots.afternoon = true;
+        // Noche: 21:00 (1260m) - 08:00 (1920m)
+        if (startMin < 1920 && endMin > 1260) slots.night = true;
+        if (startMin < 480) slots.night = true;
+      } else if (startMin !== null) {
+        if (startMin >= 480 && startMin < 900) slots.morning = true;
+        else if (startMin >= 900 && startMin < 1260) slots.afternoon = true;
+        else slots.night = true;
+      } else {
+        slots.afternoon = true;
+      }
+    });
+
+    return slots;
+  };
+
+  const SunriseIcon = () => (
+    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#fbbf24" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" title="Mañana (08:00 - 15:00)">
+      <path d="M17 18a5 5 0 0 0-10 0" />
+      <path d="M12 2v7" />
+      <path d="M4.22 10.22l3.54 3.54" />
+      <path d="M19.78 10.22l-3.54 3.54" />
+      <path d="M2 18h20" />
+    </svg>
+  );
+
+  const SunIcon = () => (
+    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#f97316" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" title="Tarde (15:00 - 21:00)">
+      <circle cx="12" cy="12" r="4" fill="#f97316" fillOpacity="0.2" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+    </svg>
+  );
+
+  const MoonIcon = () => (
+    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#a78bfa" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" title="Noche (21:00 - 08:00)">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="#a78bfa" fillOpacity="0.2" />
+    </svg>
+  );
+
   // Helper para mostrar rango horario de la reserva
   const renderTimeRange = (booking) => {
     if (booking.startTime && booking.endTime) {
@@ -229,14 +300,23 @@ export default function CalendarView({ user, userRole, onOpenBooking, onDuplicat
             return (
               <div 
                 key={i} 
-                className={`calendar-day-cell ${d.isCurrentMonth ? '' : 'other-month'} ${isToday ? 'today-day' : ''} ${isSelected ? 'active-day' : ''}`}
+                className={`calendar-day-cell ${d.isCurrentMonth ? '' : 'other-month'} ${isToday ? 'today-day' : ''} ${isSelected ? 'active-day' : ''} ${hasBookings ? 'has-activity' : ''}`}
                 onClick={() => {
                   setSelectedDate(d.date);
                   if (!d.isCurrentMonth) setCurrentDate(d.date);
                 }}
               >
                 <span className="day-number">{d.day}</span>
-                {hasBookings && <div className="day-dot"></div>}
+                {hasBookings && (() => {
+                  const slots = getDayTimeSlots(dateBookings);
+                  return (
+                    <div className="day-time-slots">
+                      {slots.morning && <SunriseIcon />}
+                      {slots.afternoon && <SunIcon />}
+                      {slots.night && <MoonIcon />}
+                    </div>
+                  );
+                })()}
               </div>
             );
           })}
@@ -264,7 +344,39 @@ export default function CalendarView({ user, userRole, onOpenBooking, onDuplicat
                 .filter(b => b.room && !availableRooms.includes(b.room))
                 .map(b => b.room)
             ));
-            const displayRooms = [...availableRooms, ...orphanRooms];
+            const rawDisplayRooms = [...availableRooms, ...orphanRooms];
+
+            const getRoomEarliestBookingMinutes = (roomName) => {
+              const roomBookings = dayBookings.filter(b => b.room === roomName);
+              if (roomBookings.length === 0) return Infinity;
+              
+              let minMinutes = Infinity;
+              roomBookings.forEach(b => {
+                const min = parseTimeToMinutes(b.startTime);
+                if (min !== null && min < minMinutes) {
+                  minMinutes = min;
+                }
+              });
+              return minMinutes;
+            };
+
+            const displayRooms = [...rawDisplayRooms].sort((a, b) => {
+              const bookingsA = dayBookings.filter(bk => bk.room === a);
+              const bookingsB = dayBookings.filter(bk => bk.room === b);
+              const isOccA = bookingsA.length > 0;
+              const isOccB = bookingsB.length > 0;
+
+              if (isOccA && !isOccB) return -1;
+              if (!isOccA && isOccB) return 1;
+
+              if (isOccA && isOccB) {
+                const timeA = getRoomEarliestBookingMinutes(a);
+                const timeB = getRoomEarliestBookingMinutes(b);
+                if (timeA !== timeB) return timeA - timeB;
+              }
+
+              return rawDisplayRooms.indexOf(a) - rawDisplayRooms.indexOf(b);
+            });
 
             if (displayRooms.length === 0) {
               return (
@@ -283,7 +395,13 @@ export default function CalendarView({ user, userRole, onOpenBooking, onDuplicat
               }}>
                 {displayRooms.map((roomName) => {
                   const isOrphan = !availableRooms.includes(roomName);
-                  const roomBookings = dayBookings.filter(b => b.room === roomName);
+                  const roomBookings = dayBookings
+                    .filter(b => b.room === roomName)
+                    .sort((a, b) => {
+                      const timeA = parseTimeToMinutes(a.startTime) ?? Infinity;
+                      const timeB = parseTimeToMinutes(b.startTime) ?? Infinity;
+                      return timeA - timeB;
+                    });
                   const isOccupied = roomBookings.length > 0;
 
               return (
