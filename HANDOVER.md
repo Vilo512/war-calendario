@@ -48,11 +48,21 @@
   - Registro automático e inmutable en `cleaning_history`.
   - Modal de consulta cronológico con buscador en tiempo real y badges de socios de app vs socios manuales.
 - **🎲 Bloque 4: Reservas Avanzadas & Control de Actividades**:
-  - **Actividades Abiertas vs Cerradas / Privadas**: Distintivo `🔒 CERRADA` y restricción de plazas.
-  - **Pre-apuntados**: Permite añadir socios de la app e invitados manuales al crear la reserva.
-  - **Público Objetivo**: Segmentación `🌐 Público General`, `🤝 Socios y Simpatizantes`, o `⭐ Exclusivo para Socios`.
-  - **Duplicar Reserva**: Botón `📋 Duplicar` para clonar cualquier partida/campaña existente en 1 clic.
-  - **Maquetación Móvil**: Ajuste vertical full-width que activa el Bottom Sheet / Picker nativo del sistema en smartphones.
+  - Reservas por salas y cálculo visual del grid.
+  - Modales para crear reservas con modalidades "Abierta" vs "Cerrada" y segmentación de Público Objetivo (Todos, Semisocios, Socios).
+  - Inclusión de lista de "Pre-apuntados" (socios existentes mediante `uid` e invitados manuales mediante entrada de texto).
+  - Botón "Duplicar reserva" para clonar reservas en otras fechas.
+- **💬 Bloque 5: Integración de Bot de WhatsApp (Avisos de Comunidad)**:
+  - Implementado webhook serverless en Vercel (`api/whatsapp.js`).
+  - Conexión con Green API (Plan Developer) para envíos gratuitos a Grupos.
+  - Switch incorporado en el modal de reservas `[x] Anunciar en WhatsApp`.
+  - Lógica de control de duplicados mediante flag de Firebase `whatsapp_sent: true`.
+
+---
+
+## 🚧 Estado Actual (Lo que falta por hacer)
+
+- **Bloque 6: Módulo de Analytics e Inteligencia de Limpieza (NEXT STEP)**.
 
 ---
 
