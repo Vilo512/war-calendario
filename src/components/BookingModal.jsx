@@ -20,7 +20,8 @@ export default function BookingModal({
     endTime: '12:00', 
     maxAttendees: '',
     activityType: 'open',       // 'open' (Abierta) | 'closed' (Cerrada/Privada)
-    targetAudience: 'publico'    // 'publico' | 'semisocios' | 'socios'
+    targetAudience: 'publico',   // 'publico' | 'semisocios' | 'socios'
+    announceOnWhatsApp: true     // Activado por defecto para facilitar avisos
   });
   const [roomsList, setRoomsList] = useState([]);
   const [registeredUsers, setRegisteredUsers] = useState([]);
@@ -75,7 +76,8 @@ export default function BookingModal({
           endTime: duplicateBookingData.endTime || '12:00',
           maxAttendees: duplicateBookingData.maxAttendees || '',
           activityType: duplicateBookingData.activityType || 'open',
-          targetAudience: duplicateBookingData.targetAudience || 'publico'
+          targetAudience: duplicateBookingData.targetAudience || 'publico',
+          announceOnWhatsApp: true
         });
         setPreAttendees(duplicateBookingData.attendees || []);
       } else {
@@ -91,7 +93,8 @@ export default function BookingModal({
           endTime: '12:00',
           maxAttendees: '',
           activityType: 'open',
-          targetAudience: 'publico'
+          targetAudience: 'publico',
+          announceOnWhatsApp: true
         });
         setPreAttendees([]);
       }
@@ -242,9 +245,22 @@ export default function BookingModal({
           userId: user ? user.uid : 'anonymous',
           userEmail: user ? user.email : '',
           userName: user ? (user.displayName || user.email) : 'Anónimo',
-          createdAt: new Date()
+          createdAt: new Date(),
+          whatsapp_sent: formData.announceOnWhatsApp ? true : false // Se marcará como true ya que lo enviaremos ahora
         });
       });
+      
+      // Enviar notificación a WhatsApp de forma asíncrona (fire and forget)
+      if (formData.announceOnWhatsApp) {
+        const msg = `📢 *${formData.name.trim()}*\n📅 *${formData.date}* - ⏰ *${formData.startTime}* a *${formData.endTime}*\n📍 *${selectedRoom}*\n👥 *${parsedMax ? parsedMax + ' plazas' : 'Sin límite'}*\n🔗 *Apúntate en la App:* https://warcalendario.vercel.app`;
+        
+        fetch('/api/whatsapp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: msg })
+        }).catch(err => console.error("Error enviando WhatsApp:", err));
+      }
+
       onClose();
     } catch (error) {
       console.error("Error al reservar: ", error);
@@ -380,6 +396,19 @@ export default function BookingModal({
                     <option value="semisocios">🤝 Socios y Simpatizantes</option>
                     <option value="socios">⭐ Exclusivo para Socios</option>
                   </select>
+                </div>
+
+                {/* Toggle WhatsApp */}
+                <div className="form-group" style={{ marginBottom: 0, width: '100%', boxSizing: 'border-box' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                    <input 
+                      type="checkbox"
+                      style={{ width: '1.2rem', height: '1.2rem', accentColor: '#25D366', cursor: 'pointer' }}
+                      checked={formData.announceOnWhatsApp}
+                      onChange={(e) => setFormData({ ...formData, announceOnWhatsApp: e.target.checked })}
+                    />
+                    <span>📢 Anunciar en el grupo de WhatsApp de la Asociación</span>
+                  </label>
                 </div>
               </div>
             </div>
