@@ -260,12 +260,24 @@ export default function BookingModal({
         if (formData.targetAudience === 'semisocios') targetLabel = '🤝 Socios y Simpatizantes';
         if (formData.targetAudience === 'socios') targetLabel = '⭐ Exclusivo Socios';
 
-        const countPre = preAttendees.length;
-        const plazasText = parsedMax 
-          ? `${countPre}/${parsedMax} ocupadas` 
-          : (countPre > 0 ? `${countPre} pre-apuntado(s) (Sin límite)` : 'Sin límite');
+        // Formatear fecha YYYY-MM-DD a DD/MM/YYYY
+        let displayDate = formData.date;
+        if (formData.date && formData.date.includes('-')) {
+          const [y, m, d] = formData.date.split('-');
+          displayDate = `${d}/${m}/${y}`;
+        }
 
-        const msg = `📢 *${formData.name.trim()}*\n📅 *${formData.date}* - ⏰ *${formData.startTime}* a *${formData.endTime}*\n📍 *${selectedRoom}*\n🎯 *Formato:* ${activityLabel} (${targetLabel})\n👥 *Plazas:* ${plazasText}\n🔗 *Apúntate en la App:* ${appUrl}`;
+        const countPre = preAttendees.length;
+        const preNamesList = preAttendees.map(a => a.name).join(', ');
+        
+        let plazasText = 'Sin límite';
+        if (parsedMax) {
+          plazasText = `${countPre}/${parsedMax} ocupadas${preNamesList ? ` (${preNamesList})` : ''}`;
+        } else if (countPre > 0) {
+          plazasText = `${countPre} pre-apuntado(s) (${preNamesList})`;
+        }
+
+        const msg = `📢 *${formData.name.trim()}*\n📅 *${displayDate}* - ⏰ *${formData.startTime}* a *${formData.endTime}*\n📍 *${selectedRoom}*\n🎯 *Formato:* ${activityLabel} (${targetLabel})\n👥 *Plazas:* ${plazasText}\n🔗 *Apúntate en la App:* ${appUrl}`;
         
         sendWhatsAppMessage(msg).catch(err => console.error("Error enviando WhatsApp:", err));
       }
