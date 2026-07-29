@@ -120,7 +120,7 @@ export default function App() {
               style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover', boxShadow: '0 0 25px rgba(255, 255, 255, 0.25)', border: '2.5px solid rgba(255, 255, 255, 0.3)', flexShrink: 0 }} 
             />
             <div>
-              <h1 className="title" style={{margin: 0, fontSize: '2.2rem', letterSpacing: '0.04em', lineHeight: 1.1}}>W.A.R.lendario</h1>
+              <h1 className="title header-title" style={{margin: 0, letterSpacing: '0.04em', lineHeight: 1.1}}>W.A.R.lendario</h1>
               <p style={{color: 'var(--text-secondary)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, margin: 0, marginTop: '2px'}}>
                 Volver al Calendario
               </p>
@@ -150,7 +150,7 @@ export default function App() {
             }} 
           />
           <div>
-            <h1 className="title" style={{margin: 0, fontSize: '2.2rem', letterSpacing: '0.04em', lineHeight: 1.1}}>W.A.R.lendario</h1>
+            <h1 className="title header-title" style={{margin: 0, letterSpacing: '0.04em', lineHeight: 1.1}}>W.A.R.lendario</h1>
             <p style={{color: 'var(--text-secondary)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, margin: 0, marginTop: '2px'}}>
               Wargames and Rol Lleida
             </p>
