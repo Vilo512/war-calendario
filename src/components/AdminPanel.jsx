@@ -242,8 +242,9 @@ export default function AdminPanel({ isOpen, onClose, user }) {
 
       // Enviar a WhatsApp si está marcado
       if (ancWhatsApp) {
+        const appUrl = window.location.origin;
         const priorityLabel = ancPriority === 'URGENT' ? '🚨 *[AVISO URGENTE]*' : '📢 *[COMUNICADO OFICIAL]*';
-        const waMsg = `${priorityLabel}\n*${ancTitle.trim()}*\n\n${ancContent.trim() ? ancContent.trim() + '\n\n' : ''}🔗 *Ver en la App:* https://war-calendario.web.app`;
+        const waMsg = `${priorityLabel}\n*${ancTitle.trim()}*\n\n${ancContent.trim() ? ancContent.trim() + '\n\n' : ''}🔗 *Ver en la App:* ${appUrl}`;
         sendWhatsAppMessage(waMsg).catch(err => console.error("Error enviando WhatsApp del anuncio:", err));
       }
 

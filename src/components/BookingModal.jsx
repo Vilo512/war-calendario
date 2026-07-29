@@ -253,7 +253,8 @@ export default function BookingModal({
       
       // Enviar notificación a WhatsApp de forma asíncrona (fire and forget)
       if (formData.announceOnWhatsApp) {
-        const msg = `📢 *${formData.name.trim()}*\n📅 *${formData.date}* - ⏰ *${formData.startTime}* a *${formData.endTime}*\n📍 *${selectedRoom}*\n👥 *${parsedMax ? parsedMax + ' plazas' : 'Sin límite'}*\n🔗 *Apúntate en la App:* https://war-calendario.web.app`;
+        const appUrl = window.location.origin;
+        const msg = `📢 *${formData.name.trim()}*\n📅 *${formData.date}* - ⏰ *${formData.startTime}* a *${formData.endTime}*\n📍 *${selectedRoom}*\n👥 *${parsedMax ? parsedMax + ' plazas' : 'Sin límite'}*\n🔗 *Apúntate en la App:* ${appUrl}`;
         
         sendWhatsAppMessage(msg).catch(err => console.error("Error enviando WhatsApp:", err));
       }
