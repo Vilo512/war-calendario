@@ -1,9 +1,9 @@
 # Documento de Handover - W.A.R.lendario (Wargames and Rol Lleida)
 
 **Fecha de actualización**: 29 de Julio de 2026  
-**Versión de Producción**: 🚀 **v1.0.0 (MVP Finalizado con Éxito)**  
-**Despliegue Principal Vercel**: [https://warlendario.vercel.app/](https://warlendario.vercel.app/)  
-**Despliegue Secundario Firebase Hosting**: [https://war-calendario.web.app/](https://war-calendario.web.app/)  
+**Estado del Proyecto**: 🚀 **v1.0.0 - MVP Finalizado con Éxito y Desplegado en Producción**  
+**URL de Producción Principal (Vercel)**: [https://warlendario.vercel.app/](https://warlendario.vercel.app/)  
+**URL de Producción Secundario (Firebase)**: [https://war-calendario.web.app/](https://war-calendario.web.app/)  
 **Repositorio GitHub**: [https://github.com/Vilo512/war-calendario.git](https://github.com/Vilo512/war-calendario.git) (Rama `main` al día)  
 **Puntos de Respaldo / Hard Checkpoint**:
 - Tag Git: `v1.0.0-mvp-complete`
@@ -17,14 +17,14 @@
 - **Backend / Base de Datos**: Firebase Authentication + Firestore (Colecciones en tiempo real).
 - **Enrutamiento Nivel SPA**: SPA nativo ultrarrápido con soporte en Vercel (`vercel.json`) y Firebase (`firebase.json`).
 - **Integraciones externas**: 
-  - Green API para bot de notificaciones a WhatsApp (Grupo de la Asociación).
-  - Feed iCal / Webcal en vivo para suscripción de calendarios nativos (iOS / Google Calendar).
+  - Green API para bot de notificaciones a WhatsApp (Grupo de Avisos de la Comunidad).
+  - Feed iCal / Webcal en vivo para suscripción de calendarios nativos (iOS / Google Calendar) con URL dinámica según el dominio actual.
 - **Estética & Diseño**: 
   - Identidad de Marca: **W.A.R.lendario** (*Wargames and Rol Lleida*).
   - Táctica / Esténcil militar en blanco y negro (Saira Stencil One + Outfit font).
   - Logo circular realzado en el header.
   - Marca de agua SVG en background con opacidad ~9% y paneles translúcidos glassmorphism.
-  - Responsivo optimizado para móviles (iPhone SE 375x667 y superiores).
+  - Responsivo optimizado para móviles (iPhone SE 375x667 y superiores) con `clamp()` para ajuste automático de fuentes.
 
 ---
 
@@ -45,7 +45,7 @@
 ## 🛠️ 3. Resumen de Bloques Completados
 
 - **🎨 Bloque 1: Identidad de Marca y Estética Visual General**:
-  - Marca actualizada a **W.A.R.lendario (Wargames and Rol Lleida)** con logo circular realzado.
+  - Marca actualizada a **W.A.R.lendario (Wargames and Rol Lleida)** en header, HTML y PWA.
   - Acabado glassmorphism translúcido y marca de agua táctil.
 - **📱 Bloque 2: Optimización de Interfaz Mobile (iPhone SE - 375x667px)**:
   - Header adaptativo con `clamp()` CSS para evitar recortes de texto.
@@ -60,7 +60,8 @@
   - Botón "Duplicar reserva" para clonar reservas en otras fechas.
 - **💬 Bloque 5: Bot de WhatsApp de Avisos de Comunidad**:
   - Servicio dual client-side y serverless function para Green API.
-  - Envío automático de notificaciones a WhatsApp al crear reservas, publicar anuncios oficiales o cancelar reservas.
+  - Plantilla enriquecida con fecha `DD/MM/YYYY`, modalidad (Abierta/Cerrada), público objetivo, conteo de plazas y nombres de pre-apuntados.
+  - Envíos automáticos a WhatsApp al crear reservas, publicar anuncios oficiales o cancelar reservas.
   - Control de estado mediante flag `whatsapp_sent: true`.
 - **📊 Bloque 6: Panel de Analíticas e Inteligencia de Limpieza**:
   - Ruta privada `/analytics` protegida para Administradores con estadísticas mensuales de partidas, horas reservadas, ocupación por salas y afluencia por días de la semana con gráficos nativos en HTML/CSS.
