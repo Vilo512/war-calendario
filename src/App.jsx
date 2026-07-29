@@ -8,6 +8,7 @@ import CleaningCard from './components/CleaningCard';
 import Login from './components/Login';
 import AdminPanel from './components/AdminPanel';
 import AnnouncementBanner from './components/AnnouncementBanner';
+import AnalyticsPage from './pages/AnalyticsPage';
 import { getRoleLabel, isAdminRole, ROLES, subscribeRoleLabels, DEFAULT_ROLE_LABELS } from './utils/roleUtils';
 import { subscribeOpenIncidents } from './services/cleaningIncidentService';
 import './index.css';
@@ -107,6 +108,30 @@ export default function App() {
   const isAdmin = isAdminRole(userRole);
   const roleLabel = getRoleLabel(userRole, customRoleLabels);
 
+  // Enrutamiento nativo muy simple
+  if (window.location.pathname === '/analytics') {
+    return (
+      <div className="app-container">
+        <header className="header">
+          <div className="header-brand" style={{ display: 'flex', alignItems: 'center', gap: '1.2rem', cursor: 'pointer' }} onClick={() => window.location.href = '/'}>
+            <img 
+              src="/logo-circulo.png" 
+              alt="Logo W.A.R." 
+              style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover', boxShadow: '0 0 25px rgba(255, 255, 255, 0.25)', border: '2.5px solid rgba(255, 255, 255, 0.3)', flexShrink: 0 }} 
+            />
+            <div>
+              <h1 className="title" style={{margin: 0, fontSize: '2.2rem', letterSpacing: '0.04em', lineHeight: 1.1}}>W.A.R.</h1>
+              <p style={{color: 'var(--text-secondary)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, margin: 0, marginTop: '2px'}}>
+                Volver al Calendario
+              </p>
+            </div>
+          </div>
+        </header>
+        <AnalyticsPage user={user} userRole={userRole} />
+      </div>
+    );
+  }
+
   return (
     <div className="app-container">
       <header className="header">
@@ -165,15 +190,23 @@ export default function App() {
 
           <div className="header-actions">
             {isAdmin && (
-              <button 
-                className="btn btn-secondary" 
-                onClick={() => setIsAdminOpen(true)} 
-                style={{ 
-                  borderColor: openIncidentsCount > 0 ? 'var(--danger)' : 'var(--accent-primary)',
-                  position: 'relative'
-                }}
-              >
-                Admin Panel
+              <>
+                <button 
+                  className="btn btn-secondary" 
+                  onClick={() => window.location.href = '/analytics'} 
+                  style={{ borderColor: 'var(--accent-secondary)' }}
+                >
+                  📊 Analíticas
+                </button>
+                <button 
+                  className="btn btn-secondary" 
+                  onClick={() => setIsAdminOpen(true)} 
+                  style={{ 
+                    borderColor: openIncidentsCount > 0 ? 'var(--danger)' : 'var(--accent-primary)',
+                    position: 'relative'
+                  }}
+                >
+                  Admin Panel
                 {openIncidentsCount > 0 && (
                   <span style={{ 
                     position: 'absolute', 
@@ -195,6 +228,7 @@ export default function App() {
                   </span>
                 )}
               </button>
+              </>
             )}
 
             <button className="btn" onClick={() => handleOpenBooking()}>

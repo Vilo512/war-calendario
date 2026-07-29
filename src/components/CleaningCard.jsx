@@ -14,6 +14,7 @@ import SwapModal from './SwapModal';
 import IncidentModal from './IncidentModal';
 import CleaningHistoryModal from './CleaningHistoryModal';
 import { recordCleaningHistory, removeCleaningHistoryForWeek } from '../services/cleaningHistoryService';
+import { getSmartCleaningSuggestion } from '../services/smartCleaningService';
 
 export default function CleaningCard({ user, userRole }) {
   const [config, setConfig] = useState(null);
@@ -26,6 +27,7 @@ export default function CleaningCard({ user, userRole }) {
   const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [actionMsg, setActionMsg] = useState('');
+  const [smartSuggestion, setSmartSuggestion] = useState('Analizando ocupación...');
 
   const weekId = getWeekId();
   const weekRange = formatWeekRange();
@@ -72,6 +74,14 @@ export default function CleaningCard({ user, userRole }) {
     });
     return () => unsub();
   }, [userId]);
+
+  // Cargar sugerencia inteligente (una sola vez al montar o si la semana cambia)
+  useEffect(() => {
+    if (!isCleaningMember(userRole)) return;
+    getSmartCleaningSuggestion().then(suggestion => {
+      setSmartSuggestion(suggestion);
+    });
+  }, [weekId, userRole]);
 
   // Solo socios y administradores ven la tarjeta de limpieza
   if (!isCleaningMember(userRole)) {
@@ -270,6 +280,16 @@ export default function CleaningCard({ user, userRole }) {
           {actionMsg}
         </div>
       )}
+
+      {/* Sugerencia Inteligente */}
+      <div style={{ marginTop: '0.8rem', background: 'rgba(52, 211, 153, 0.1)', border: '1px solid rgba(52, 211, 153, 0.3)', padding: '0.6rem 0.8rem', borderRadius: '6px', fontSize: '0.8rem' }}>
+        <div style={{ color: '#34d399', fontWeight: 'bold', marginBottom: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <span>💡</span> Sugerencia Inteligente:
+        </div>
+        <div style={{ color: 'var(--text-secondary)' }}>
+          {smartSuggestion}
+        </div>
+      </div>
 
       {/* Alertas de Permutas Entrantes */}
       {pendingIncomingSwaps.length > 0 && (
