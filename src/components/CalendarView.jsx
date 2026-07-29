@@ -248,7 +248,7 @@ export default function CalendarView({ user, userRole, onOpenBooking, onDuplicat
   };
 
   const SunriseIcon = () => (
-    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#fbbf24" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" title="Mañana (08:00 - 15:00)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" title="Mañana (08:00 - 15:00)">
       <path d="M17 18a5 5 0 0 0-10 0" />
       <path d="M12 2v7" />
       <path d="M4.22 10.22l3.54 3.54" />
@@ -258,15 +258,15 @@ export default function CalendarView({ user, userRole, onOpenBooking, onDuplicat
   );
 
   const SunIcon = () => (
-    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#f97316" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" title="Tarde (15:00 - 21:00)">
-      <circle cx="12" cy="12" r="4" fill="#f97316" fillOpacity="0.2" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" title="Tarde (15:00 - 21:00)">
+      <circle cx="12" cy="12" r="4" fill="#f97316" fillOpacity="0.25" />
       <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
     </svg>
   );
 
   const MoonIcon = () => (
-    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#a78bfa" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" title="Noche (21:00 - 08:00)">
-      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="#a78bfa" fillOpacity="0.2" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" title="Noche (21:00 - 08:00)">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="#a78bfa" fillOpacity="0.25" />
     </svg>
   );
 

@@ -616,6 +616,19 @@ body::before {
   width: 100%;
   padding-top: 2px;
 }
+.day-time-slots svg {
+  width: 20px;
+  height: 20px;
+  max-width: 30%;
+  flex-shrink: 0;
+}
+@media (max-width: 768px) {
+  .day-time-slots svg {
+    width: 16px;
+    height: 16px;
+    max-width: 32%;
+  }
+}
 
 /* Responsive Calendar Week View */
 .calendar-week-container {
