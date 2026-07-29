@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { doc, runTransaction, collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { canBook as canBookUser, getRoleLabel } from '../utils/roleUtils';
+import { sendWhatsAppMessage } from '../services/whatsappService';
 
 export default function BookingModal({ 
   isOpen, 
@@ -254,11 +255,7 @@ export default function BookingModal({
       if (formData.announceOnWhatsApp) {
         const msg = `📢 *${formData.name.trim()}*\n📅 *${formData.date}* - ⏰ *${formData.startTime}* a *${formData.endTime}*\n📍 *${selectedRoom}*\n👥 *${parsedMax ? parsedMax + ' plazas' : 'Sin límite'}*\n🔗 *Apúntate en la App:* https://war-calendario.web.app`;
         
-        fetch('/api/whatsapp', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: msg })
-        }).catch(err => console.error("Error enviando WhatsApp:", err));
+        sendWhatsAppMessage(msg).catch(err => console.error("Error enviando WhatsApp:", err));
       }
 
       onClose();

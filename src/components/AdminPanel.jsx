@@ -24,6 +24,7 @@ import {
 } from '../services/announcementService';
 import CleaningHistoryModal from './CleaningHistoryModal';
 import { recordCleaningHistory } from '../services/cleaningHistoryService';
+import { sendWhatsAppMessage } from '../services/whatsappService';
 import { getWeekId, formatWeekRange } from '../utils/cleaningUtils';
 
 export default function AdminPanel({ isOpen, onClose, user }) {
@@ -242,12 +243,8 @@ export default function AdminPanel({ isOpen, onClose, user }) {
       // Enviar a WhatsApp si está marcado
       if (ancWhatsApp) {
         const priorityLabel = ancPriority === 'URGENT' ? '🚨 *[AVISO URGENTE]*' : '📢 *[COMUNICADO OFICIAL]*';
-        const waMsg = `${priorityLabel}\n*${ancTitle.trim()}*\n\n${ancContent.trim() ? ancContent.trim() + '\n\n' : ''}🔗 *Ver en la App:* https://warcalendario.vercel.app`;
-        fetch('/api/whatsapp', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: waMsg })
-        }).catch(err => console.error("Error enviando WhatsApp del anuncio:", err));
+        const waMsg = `${priorityLabel}\n*${ancTitle.trim()}*\n\n${ancContent.trim() ? ancContent.trim() + '\n\n' : ''}🔗 *Ver en la App:* https://war-calendario.web.app`;
+        sendWhatsAppMessage(waMsg).catch(err => console.error("Error enviando WhatsApp del anuncio:", err));
       }
 
       setAncTitle('');
