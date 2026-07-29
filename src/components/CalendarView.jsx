@@ -759,17 +759,25 @@ export default function CalendarView({ user, userRole, onOpenBooking, onDuplicat
         viewMode === 'month' ? renderMonthView() : renderWeekView()
       )}
 
-      {/* Modal de Detalle de Asistentes */}
-      <AttendeesModal
-        isOpen={!!selectedBookingForAttendees}
-        onClose={() => setSelectedBookingForAttendees(null)}
-        booking={selectedBookingForAttendees}
-        user={user}
-        onToggleAttendance={(b) => {
-          handleToggleAttendance(b);
-          setSelectedBookingForAttendees(null);
-        }}
-      />
+      {/* Modal de Detalle de Asistentes con Sincronización en Tiempo Real */}
+      {(() => {
+        const liveBooking = selectedBookingForAttendees
+          ? (bookings.find(b => b.id === selectedBookingForAttendees.id) || selectedBookingForAttendees)
+          : null;
+        
+        return (
+          <AttendeesModal
+            isOpen={!!selectedBookingForAttendees}
+            onClose={() => setSelectedBookingForAttendees(null)}
+            booking={liveBooking}
+            user={user}
+            userRole={userRole}
+            onToggleAttendance={(b) => {
+              handleToggleAttendance(b);
+            }}
+          />
+        );
+      })()}
 
       {/* Modal / Action Sheet de Selección Táctil de Sala para Móvil */}
       <RoomPickerModal
