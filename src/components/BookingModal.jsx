@@ -254,7 +254,18 @@ export default function BookingModal({
       // Enviar notificación a WhatsApp de forma asíncrona (fire and forget)
       if (formData.announceOnWhatsApp) {
         const appUrl = window.location.origin;
-        const msg = `📢 *${formData.name.trim()}*\n📅 *${formData.date}* - ⏰ *${formData.startTime}* a *${formData.endTime}*\n📍 *${selectedRoom}*\n👥 *${parsedMax ? parsedMax + ' plazas' : 'Sin límite'}*\n🔗 *Apúntate en la App:* ${appUrl}`;
+        const activityLabel = formData.activityType === 'closed' ? '🔒 Mesa Cerrada' : '🔓 Actividad Abierta';
+        
+        let targetLabel = '🌐 Público General';
+        if (formData.targetAudience === 'semisocios') targetLabel = '🤝 Socios y Simpatizantes';
+        if (formData.targetAudience === 'socios') targetLabel = '⭐ Exclusivo Socios';
+
+        const countPre = preAttendees.length;
+        const plazasText = parsedMax 
+          ? `${countPre}/${parsedMax} ocupadas` 
+          : (countPre > 0 ? `${countPre} pre-apuntado(s) (Sin límite)` : 'Sin límite');
+
+        const msg = `📢 *${formData.name.trim()}*\n📅 *${formData.date}* - ⏰ *${formData.startTime}* a *${formData.endTime}*\n📍 *${selectedRoom}*\n🎯 *Formato:* ${activityLabel} (${targetLabel})\n👥 *Plazas:* ${plazasText}\n🔗 *Apúntate en la App:* ${appUrl}`;
         
         sendWhatsAppMessage(msg).catch(err => console.error("Error enviando WhatsApp:", err));
       }
