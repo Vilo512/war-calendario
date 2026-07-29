@@ -272,6 +272,10 @@ export default function App() {
       />
       
       {isAdminOpen && <AdminPanel isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} user={user} />}
+      
+      <footer style={{ textAlign: 'center', padding: '2rem 1rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8rem', opacity: 0.7 }}>
+        WAR Calendario - v1.0.0
+      </footer>
     </div>
   );
 }

@@ -224,6 +224,9 @@ export default function AnalyticsPage({ user, userRole }) {
 
         </div>
       )}
+      <footer style={{ textAlign: 'center', padding: '2rem 1rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8rem', opacity: 0.7 }}>
+        WAR Calendario - v1.0.0
+      </footer>
     </div>
   );
 }
