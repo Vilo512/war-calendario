@@ -584,12 +584,12 @@ body::before {
   background: rgba(255,255,255,0.06);
 }
 .calendar-day-cell.has-activity {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.25);
-  box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.40);
+  box-shadow: inset 0 0 12px rgba(255, 255, 255, 0.08);
 }
 .calendar-day-cell.has-activity:hover {
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.26);
 }
 .calendar-day-cell.other-month {
   opacity: 0.35;
