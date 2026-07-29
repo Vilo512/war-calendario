@@ -44,6 +44,7 @@ export default function AdminPanel({ isOpen, onClose, user }) {
   const [ancContent, setAncContent] = useState('');
   const [ancPriority, setAncPriority] = useState('NORMAL');
   const [ancDuration, setAncDuration] = useState('0'); // '0' = permanente, '1', '3', '7', '14', '30'
+  const [ancWhatsApp, setAncWhatsApp] = useState(true);
   const [msg, setMsg] = useState('');
 
   const handleAdminMarkComplete = async (member) => {
@@ -237,10 +238,23 @@ export default function AdminPanel({ isOpen, onClose, user }) {
         durationDays: parseInt(ancDuration, 10) || 0,
         user
       });
+
+      // Enviar a WhatsApp si está marcado
+      if (ancWhatsApp) {
+        const priorityLabel = ancPriority === 'URGENT' ? '🚨 *[AVISO URGENTE]*' : '📢 *[COMUNICADO OFICIAL]*';
+        const waMsg = `${priorityLabel}\n*${ancTitle.trim()}*\n\n${ancContent.trim() ? ancContent.trim() + '\n\n' : ''}🔗 *Ver en la App:* https://warcalendario.vercel.app`;
+        fetch('/api/whatsapp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: waMsg })
+        }).catch(err => console.error("Error enviando WhatsApp del anuncio:", err));
+      }
+
       setAncTitle('');
       setAncContent('');
       setAncPriority('NORMAL');
       setAncDuration('0');
+      setAncWhatsApp(true);
       setMsg('Anuncio oficial publicado con éxito.');
       setTimeout(() => setMsg(''), 3000);
     } catch (err) {
@@ -870,7 +884,19 @@ export default function AdminPanel({ isOpen, onClose, user }) {
                   </div>
                 </div>
 
-                <button type="submit" className="btn" style={{ fontSize: '0.85rem', padding: '0.5rem 1.2rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginTop: '0.5rem', width: '100%', cursor: 'pointer' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                    <input 
+                      type="checkbox"
+                      style={{ width: '1.2rem', height: '1.2rem', accentColor: '#25D366', cursor: 'pointer' }}
+                      checked={ancWhatsApp}
+                      onChange={(e) => setAncWhatsApp(e.target.checked)}
+                    />
+                    <span>📲 Enviar notificación al grupo de Avisos de WhatsApp</span>
+                  </label>
+                </div>
+
+                <button type="submit" className="btn" style={{ fontSize: '0.85rem', padding: '0.5rem 1.2rem', marginTop: '0.4rem' }}>
                   + Publicar Anuncio
                 </button>
               </div>
