@@ -1,10 +1,13 @@
-# Documento de Handover - W.A.R. (Wargames and Rol Lleida)
+# Documento de Handover - W.A.R.lendario (Wargames and Rol Lleida)
 
-**Fecha de actualización**: 26 de Julio de 2026  
-**Estado del Proyecto**: ✅ **Bloques 1, 2, 3 y 4 Completados, 100% Funcionales, Compilados y Desplegados en Producción**  
-**Despliegue Firebase Hosting (Frontend)**: [https://war-calendario.web.app/](https://war-calendario.web.app/)  
-**Despliegue Vercel Serverless (API iCal Feed en vivo)**: [https://war-calendario.vercel.app/api/ical](https://war-calendario.vercel.app/api/ical)  
+**Fecha de actualización**: 29 de Julio de 2026  
+**Versión de Producción**: 🚀 **v1.0.0 (MVP Finalizado con Éxito)**  
+**Despliegue Principal Vercel**: [https://warlendario.vercel.app/](https://warlendario.vercel.app/)  
+**Despliegue Secundario Firebase Hosting**: [https://war-calendario.web.app/](https://war-calendario.web.app/)  
 **Repositorio GitHub**: [https://github.com/Vilo512/war-calendario.git](https://github.com/Vilo512/war-calendario.git) (Rama `main` al día)  
+**Puntos de Respaldo / Hard Checkpoint**:
+- Tag Git: `v1.0.0-mvp-complete`
+- Rama Backup: `backup-mvp-complete`
 
 ---
 
@@ -12,14 +15,16 @@
 
 - **Frontend**: React (Vite) + Vanilla CSS + PWA (Progressive Web App con Service Worker y Manifest).
 - **Backend / Base de Datos**: Firebase Authentication + Firestore (Colecciones en tiempo real).
-- **Servidor de Sincronización WebCal / iCal en Vivo**: Vercel Serverless Function (`api/ical.js`).
-- **Servidor de Bajas Permanentes**: Vercel Serverless Function (`api/delete-user.js`).
+- **Enrutamiento Nivel SPA**: SPA nativo ultrarrápido con soporte en Vercel (`vercel.json`) y Firebase (`firebase.json`).
+- **Integraciones externas**: 
+  - Green API para bot de notificaciones a WhatsApp (Grupo de la Asociación).
+  - Feed iCal / Webcal en vivo para suscripción de calendarios nativos (iOS / Google Calendar).
 - **Estética & Diseño**: 
-  - Identidad de Marca: **W.A.R.** (*Wargames and Rol Lleida*).
+  - Identidad de Marca: **W.A.R.lendario** (*Wargames and Rol Lleida*).
   - Táctica / Esténcil militar en blanco y negro (Saira Stencil One + Outfit font).
   - Logo circular realzado en el header.
   - Marca de agua SVG en background con opacidad ~9% y paneles translúcidos glassmorphism.
-  - Responsivo optimizado para móviles (iPhone SE 375x667).
+  - Responsivo optimizado para móviles (iPhone SE 375x667 y superiores).
 
 ---
 
@@ -27,7 +32,7 @@
 
 1. **`users`**: `{ uid, email, displayName, role (0: No socio, 1: Semisocio, 2: Socio, 9: Admin) }`
 2. **`rooms`**: `{ name, capacity, active }`
-3. **`bookings`**: `{ name, date (YYYY-MM-DD), startTime (HH:mm), endTime (HH:mm), room, activityType ('open'|'closed'), targetAudience ('publico'|'semisocios'|'socios'), attendees: [{uid, name, isManual}], maxAttendees }`
+3. **`bookings`**: `{ name, date (YYYY-MM-DD), startTime (HH:mm), endTime (HH:mm), time, room, activityType ('open'|'closed'), targetAudience ('publico'|'semisocios'|'socios'), attendees: [{uid, name, isManual}], maxAttendees, whatsapp_sent: boolean }`
 4. **`cleaning_schedule/config`**: `{ members: [{id, name, type, uid}], currentWeekIndex }`
 5. **`cleaning_history`**: `{ weekId, weekRange, memberId, memberName, isManual, completedAt, completedByUid, completedByName }`
 6. **`cleaning_swaps`**: Solicitudes de cambio de turno de limpieza entre socios.
@@ -40,9 +45,10 @@
 ## 🛠️ 3. Resumen de Bloques Completados
 
 - **🎨 Bloque 1: Identidad de Marca y Estética Visual General**:
-  - Header reestructurado como **W.A.R. (Wargames and Rol Lleida)** con logo circular realzado.
+  - Marca actualizada a **W.A.R.lendario (Wargames and Rol Lleida)** con logo circular realzado.
   - Acabado glassmorphism translúcido y marca de agua táctil.
 - **📱 Bloque 2: Optimización de Interfaz Mobile (iPhone SE - 375x667px)**:
+  - Header adaptativo con `clamp()` CSS para evitar recortes de texto.
   - Tarjeta de limpieza compacta con badge `"Último día"`, botones apilables y sustitución del icono por SVG de escoba nativo.
 - **🧹 Bloque 3: Módulo de Histórico de Limpieza**:
   - Registro automático e inmutable en `cleaning_history`.
@@ -52,21 +58,18 @@
   - Modales para crear reservas con modalidades "Abierta" vs "Cerrada" y segmentación de Público Objetivo (Todos, Semisocios, Socios).
   - Inclusión de lista de "Pre-apuntados" (socios existentes mediante `uid` e invitados manuales mediante entrada de texto).
   - Botón "Duplicar reserva" para clonar reservas en otras fechas.
-- **💬 Bloque 5: Integración de Bot de WhatsApp (Avisos de Comunidad)**:
-  - Implementado webhook serverless en Vercel (`api/whatsapp.js`).
-  - Conexión con Green API (Plan Developer) para envíos gratuitos a Grupos.
-  - Switch incorporado en el modal de reservas `[x] Anunciar en WhatsApp`.
-  - Lógica de control de duplicados mediante flag de Firebase `whatsapp_sent: true`.
+- **💬 Bloque 5: Bot de WhatsApp de Avisos de Comunidad**:
+  - Servicio dual client-side y serverless function para Green API.
+  - Envío automático de notificaciones a WhatsApp al crear reservas, publicar anuncios oficiales o cancelar reservas.
+  - Control de estado mediante flag `whatsapp_sent: true`.
+- **📊 Bloque 6: Panel de Analíticas e Inteligencia de Limpieza**:
+  - Ruta privada `/analytics` protegida para Administradores con estadísticas mensuales de partidas, horas reservadas, ocupación por salas y afluencia por días de la semana con gráficos nativos en HTML/CSS.
+  - Asistente de Limpieza Inteligente en la `CleaningCard` que consulta las reservas de la semana en curso y sugiere al socio asignado los días con 0 reservas o menor volumen de horas para limpiar el local de manera óptima.
 
 ---
 
-## 🚧 Estado Actual (Lo que falta por hacer)
+## 🔒 4. Respaldo y Restauración
 
-- **Bloque 6: Módulo de Analytics e Inteligencia de Limpieza (NEXT STEP)**.
-
----
-
-## 🔒 4. Reglas de Backup y Checkpoints
-
-- **Regla del Proyecto**: Cada vez que se solicite un Handover o finalice una sesión de trabajo, se realiza un git commit y push a la rama `main` de GitHub como punto de restauración inmutable.
-- **Commit de Cierre**: `c0a035d` ("Checkpoint: Ajuste de maquetacion responsive vertical e integracion de picker nativo para Modalidad y Publico Objetivo").
+- **Tag Git**: `v1.0.0-mvp-complete`
+- **Rama Backup**: `backup-mvp-complete`
+- **Comando de Restauración**: `git checkout v1.0.0-mvp-complete`
