@@ -1,9 +1,27 @@
 import React, { useState } from 'react';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, sendPasswordResetEmail } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, sendPasswordResetEmail, sendEmailVerification } from 'firebase/auth';
 import { doc, setDoc, getDocs, collection } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
 
 import { ROLES } from '../utils/roleUtils';
+
+// Helper para validar formato y erratas tipográficas comunes en dominios
+const validateEmailFormat = (emailStr) => {
+  const clean = (emailStr || '').trim().toLowerCase();
+  const regex = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
+  if (!regex.test(clean)) {
+    return { valid: false, error: 'Por favor, introduce una dirección de correo válida.' };
+  }
+
+  const invalidTypoEndings = ['.con', '.cmo', '.coom', '.gmal', '.gmai', '.hotmai', '.outloo', '.yaho'];
+  for (const typo of invalidTypoEndings) {
+    if (clean.endsWith(typo)) {
+      return { valid: false, error: `Error tipográfico detectado en el correo (termina en "${typo}"). ¿Querías decir .com / .es?` };
+    }
+  }
+
+  return { valid: true };
+};
 
 export default function Login() {
   const [isLogin, setIsLogin] = useState(true);
@@ -19,6 +37,14 @@ export default function Login() {
     e.preventDefault();
     setErrorMsg('');
     setInfoMsg('');
+
+    // Validar erratas de email
+    const emailCheck = validateEmailFormat(email);
+    if (!emailCheck.valid) {
+      setErrorMsg(emailCheck.error);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -38,6 +64,13 @@ export default function Login() {
         await updateProfile(userCredential.user, {
           displayName: name
         });
+
+        // Enviar correo de verificación de email de Firebase
+        try {
+          await sendEmailVerification(userCredential.user);
+        } catch (vErr) {
+          console.warn("No se pudo enviar verificacion de email:", vErr);
+        }
 
         // Crear documento del perfil en Firestore
         const usersSnapshot = await getDocs(collection(db, 'users'));
