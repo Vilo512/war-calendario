@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, query, orderBy, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { isAdminRole, isSocio, isSemiSocio, canBook as canBookUser, ROLES } from '../utils/roleUtils';
+import { sendWhatsAppMessage } from '../services/whatsappService';
 import AttendeesModal from './AttendeesModal';
 import RoomPickerModal from './RoomPickerModal';
 import SyncModal from './SyncModal';
@@ -129,6 +130,17 @@ export default function CalendarView({ user, userRole, onOpenBooking, onDuplicat
     if (window.confirm('¿Estás seguro de que deseas cancelar esta reserva?')) {
       try {
         await deleteDoc(doc(db, 'bookings', booking.id));
+        
+        // Si la reserva original fue anunciada por WhatsApp, enviamos el aviso de cancelación
+        if (booking.whatsapp_sent) {
+          const timeText = booking.startTime && booking.endTime 
+            ? `${booking.startTime} a ${booking.endTime}` 
+            : (booking.time || '');
+            
+          const cancelMsg = `❌ *[RESERVA CANCELADA]* ❌\n📢 *${booking.name}*\n📅 *${booking.date}* - ⏰ *${timeText}*\n📍 *${booking.room}*\n\n_Esta reserva ha sido cancelada en el calendario._`;
+          
+          sendWhatsAppMessage(cancelMsg).catch(err => console.error("Error enviando aviso de cancelación:", err));
+        }
       } catch (error) {
         console.error("Error al borrar:", error);
         alert("No tienes permiso para borrar esta reserva.");
