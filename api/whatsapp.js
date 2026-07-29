@@ -18,7 +18,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { message, chatId } = req.body;
+    const { message, chatId, idMessage } = req.body;
 
     if (!message) {
       return res.status(400).json({ error: 'Falta el cuerpo del mensaje' });
@@ -35,14 +35,19 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Configuración de servidor incompleta.' });
     }
 
-    // URL de Green API
-    const url = `https://api.green-api.com/waInstance${idInstance}/sendMessage/${apiTokenInstance}`;
+    // Determinar si enviamos un mensaje nuevo o editamos uno existente
+    const methodPath = idMessage ? 'editMessage' : 'sendMessage';
+    const url = `https://api.green-api.com/waInstance${idInstance}/${methodPath}/${apiTokenInstance}`;
 
     // Payload esperado por Green API
     const payload = {
       chatId: targetChatId,
       message: message
     };
+
+    if (idMessage) {
+      payload.idMessage = idMessage;
+    }
 
     const response = await fetch(url, {
       method: 'POST',
@@ -55,8 +60,8 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     if (!response.ok) {
-      console.error('Error de Green API:', data);
-      return res.status(response.status).json({ error: 'Error al enviar mensaje a WhatsApp', details: data });
+      console.error(`Error de Green API (${methodPath}):`, data);
+      return res.status(response.status).json({ error: `Error en Green API (${methodPath})`, details: data });
     }
 
     return res.status(200).json({ success: true, data });

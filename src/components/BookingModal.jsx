@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { doc, runTransaction, collection, onSnapshot } from 'firebase/firestore';
+import { doc, runTransaction, collection, onSnapshot, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { canBook as canBookUser, getRoleLabel } from '../utils/roleUtils';
 import { sendWhatsAppMessage } from '../services/whatsappService';
@@ -388,7 +388,22 @@ export default function BookingModal({
 
         const msg = `📢 *${cleanName}*\n📅 *${dateString}* - ⏰ *${timeString}*\n📍 *${selectedRoom}*\n🎯 *Formato:* ${activityLabel} (${targetLabel})\n👥 *Plazas:* ${plazasText}\n🔗 *Apúntate en la App:* ${appUrl}`;
         
-        sendWhatsAppMessage(msg).catch(err => console.error("Error enviando WhatsApp:", err));
+        sendWhatsAppMessage(msg)
+          .then(async (res) => {
+            const msgId = res?.idMessage || res?.data?.idMessage || res?.data?.id || null;
+            if (msgId) {
+              const targetDocId = !isOvernight ? bookingId : doc1Id;
+              try {
+                await updateDoc(doc(db, 'bookings', targetDocId), { whatsapp_message_id: msgId });
+                if (isOvernight) {
+                  await updateDoc(doc(db, 'bookings', doc2Id), { whatsapp_message_id: msgId });
+                }
+              } catch (e) {
+                console.error("Error guardando whatsapp_message_id:", e);
+              }
+            }
+          })
+          .catch(err => console.error("Error enviando WhatsApp:", err));
       }
 
       onClose();
