@@ -123,21 +123,35 @@ export default function CalendarView({ user, userRole, onOpenBooking, onDuplicat
   const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
   const dayNames = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
+  const formatDisplayDateDMY = (dateStr) => {
+    if (!dateStr) return '';
+    const parts = String(dateStr).split('-');
+    if (parts.length === 3 && parts[0].length === 4) {
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    return String(dateStr);
+  };
+
   const isAdmin = isAdminRole(userRole);
   const canDelete = (booking) => isAdmin || (user && booking.userId === user.uid);
 
   const handleDelete = async (booking) => {
     if (window.confirm('¿Estás seguro de que deseas cancelar esta reserva?')) {
       try {
-        await deleteDoc(doc(db, 'bookings', booking.id));
+        const relatedBookings = booking.overnightGroupId
+          ? bookings.filter(b => b.overnightGroupId === booking.overnightGroupId)
+          : [booking];
+
+        await Promise.all(relatedBookings.map(b => deleteDoc(doc(db, 'bookings', b.id))));
         
         // Si la reserva original fue anunciada por WhatsApp, enviamos el aviso de cancelación
         if (booking.whatsapp_sent) {
-          const timeText = booking.startTime && booking.endTime 
+          const displayDate = formatDisplayDateDMY(booking.date);
+          const timeText = booking.fullTimeRange || (booking.startTime && booking.endTime 
             ? `${booking.startTime} a ${booking.endTime}` 
-            : (booking.time || '');
+            : (booking.time || ''));
             
-          const cancelMsg = `❌ *[RESERVA CANCELADA]* ❌\n📢 *${booking.name}*\n📅 *${booking.date}* - ⏰ *${timeText}*\n📍 *${booking.room}*\n\n_Esta reserva ha sido cancelada en el calendario._`;
+          const cancelMsg = `❌ *[RESERVA CANCELADA]* ❌\n📢 *${booking.name.replace(' (Fin trasnoche)', '')}*\n📅 *${displayDate}* - ⏰ *${timeText}*\n📍 *${booking.room}*\n\n_Esta reserva ha sido cancelada en el calendario._`;
           
           sendWhatsAppMessage(cancelMsg).catch(err => console.error("Error enviando aviso de cancelación:", err));
         }
@@ -179,20 +193,23 @@ export default function CalendarView({ user, userRole, onOpenBooking, onDuplicat
       }
     }
 
-    const bookingRef = doc(db, 'bookings', booking.id);
+    const relatedBookings = booking.overnightGroupId
+      ? bookings.filter(b => b.overnightGroupId === booking.overnightGroupId)
+      : [booking];
 
     try {
+      let updatedAttendees = [];
       if (isAttending) {
-        const updatedAttendees = attendees.filter(a => a.uid !== user.uid);
-        await updateDoc(bookingRef, { attendees: updatedAttendees });
+        updatedAttendees = attendees.filter(a => a.uid !== user.uid);
       } else {
         const newAttendee = {
           uid: user.uid,
           name: user.displayName || user.email || 'Socio'
         };
-        const updatedAttendees = [...attendees, newAttendee];
-        await updateDoc(bookingRef, { attendees: updatedAttendees });
+        updatedAttendees = [...attendees, newAttendee];
       }
+
+      await Promise.all(relatedBookings.map(b => updateDoc(doc(db, 'bookings', b.id), { attendees: updatedAttendees })));
     } catch (error) {
       console.error("Error al actualizar asistencia:", error);
       alert("Error al actualizar la asistencia al evento.");

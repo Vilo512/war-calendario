@@ -8,7 +8,19 @@ export default function AttendeesModal({ isOpen, onClose, booking, user, onToggl
   const maxCount = booking.maxAttendees || null;
   const isFull = maxCount && attendees.length >= maxCount;
 
+  const formatDisplayDateDMY = (dateStr) => {
+    if (!dateStr) return '';
+    const parts = String(dateStr).split('-');
+    if (parts.length === 3 && parts[0].length === 4) {
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    return String(dateStr);
+  };
+
   const renderTimeRange = () => {
+    if (booking.fullTimeRange) {
+      return booking.fullTimeRange;
+    }
     if (booking.startTime && booking.endTime) {
       return `${booking.startTime} - ${booking.endTime}`;
     }
@@ -33,7 +45,7 @@ export default function AttendeesModal({ isOpen, onClose, booking, user, onToggl
             <h3 className="title" style={{ margin: 0, fontSize: '1.3rem' }}>{booking.name}</h3>
             <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.3rem', display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
               <span>Sala: {booking.room}</span> |
-              <span>Fecha: {booking.date}</span> |
+              <span>Fecha: {formatDisplayDateDMY(booking.date)}</span> |
               <span>Horario: {renderTimeRange()}</span>
             </div>
           </div>

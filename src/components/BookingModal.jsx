@@ -109,10 +109,31 @@ export default function BookingModal({
 
   const userCanBook = canBookUser(userRole);
 
+  // Helper para formatear YYYY-MM-DD a DD-MM-YYYY
+  const formatDisplayDateDMY = (isoDateStr) => {
+    if (!isoDateStr) return '';
+    const parts = String(isoDateStr).split('-');
+    if (parts.length === 3 && parts[0].length === 4) {
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    return String(isoDateStr);
+  };
+
+  // Helper para obtener el siguiente día en formato YYYY-MM-DD
+  const getNextIsoDate = (isoDateStr) => {
+    if (!isoDateStr) return '';
+    const [y, m, d] = isoDateStr.split('-').map(Number);
+    const dt = new Date(y, m - 1, d + 1);
+    const ny = dt.getFullYear();
+    const nm = String(dt.getMonth() + 1).padStart(2, '0');
+    const nd = String(dt.getDate()).padStart(2, '0');
+    return `${ny}-${nm}-${nd}`;
+  };
+
   // Helper para convertir "HH:MM" a minutos desde medianoche
   const timeToMinutes = (timeStr) => {
     if (!timeStr) return 0;
-    const parts = timeStr.trim().split(':');
+    const parts = String(timeStr).trim().split(':');
     const hours = parseInt(parts[0], 10) || 0;
     const minutes = parseInt(parts[1], 10) || 0;
     return hours * 60 + minutes;
@@ -143,14 +164,37 @@ export default function BookingModal({
   const currentStartMin = timeToMinutes(formData.startTime);
   const currentEndMin = timeToMinutes(formData.endTime);
 
-  const conflicts = existingBookings.filter(b => {
-    if (b.date !== formData.date || b.room !== currentRoom) return false;
-    const { startMin, endMin } = getBookingTimeRangeInMinutes(b);
-    return currentStartMin < endMin && currentEndMin > startMin;
-  });
+  const isInvalidSameTime = currentStartMin === currentEndMin;
+  const isOvernight = currentEndMin < currentStartMin;
+  const isTimeOrderInvalid = isInvalidSameTime;
+  const nextDateStr = isOvernight ? getNextIsoDate(formData.date) : '';
+
+  let conflicts = [];
+  if (!isOvernight) {
+    conflicts = existingBookings.filter(b => {
+      if (b.date !== formData.date || b.room !== currentRoom) return false;
+      const { startMin, endMin } = getBookingTimeRangeInMinutes(b);
+      return currentStartMin < endMin && currentEndMin > startMin;
+    });
+  } else {
+    // Parte 1 (Día 1: startTime a 23:59 -> 1440m)
+    const conflictsPart1 = existingBookings.filter(b => {
+      if (b.date !== formData.date || b.room !== currentRoom) return false;
+      const { startMin, endMin } = getBookingTimeRangeInMinutes(b);
+      return currentStartMin < endMin && 1440 > startMin;
+    });
+
+    // Parte 2 (Día 2: 00:00 a endTime -> 0m a currentEndMin)
+    const conflictsPart2 = existingBookings.filter(b => {
+      if (b.date !== nextDateStr || b.room !== currentRoom) return false;
+      const { startMin, endMin } = getBookingTimeRangeInMinutes(b);
+      return 0 < endMin && currentEndMin > startMin;
+    });
+
+    conflicts = [...conflictsPart1, ...conflictsPart2];
+  }
 
   const hasConflict = conflicts.length > 0;
-  const isTimeOrderInvalid = currentEndMin <= currentStartMin;
 
   // Añadir un usuario registrado a la lista de pre-apuntados
   const handleAddRegisteredPreAttendee = () => {
@@ -207,51 +251,116 @@ export default function BookingModal({
     }
 
     if (isTimeOrderInvalid) {
-      setErrorMsg('La hora de fin debe ser posterior a la hora de inicio.');
+      setErrorMsg('La hora de inicio y fin no pueden ser idénticas.');
       return;
     }
 
     if (hasConflict) {
       const conflict = conflicts[0];
+      const conflictDateDisplay = formatDisplayDateDMY(conflict.date);
       const timeDisplay = conflict.startTime && conflict.endTime ? `${conflict.startTime} - ${conflict.endTime}` : (conflict.time || 'esa hora');
-      setErrorMsg(`Conflicto de horario: La sala "${currentRoom}" ya está ocupada por "${conflict.name}" (${timeDisplay}).`);
+      setErrorMsg(`Conflicto de horario el ${conflictDateDisplay}: La sala "${currentRoom}" ya está ocupada por "${conflict.name}" (${timeDisplay}).`);
       return;
     }
 
     const selectedRoom = currentRoom;
-    const formattedTime = `${formData.startTime} - ${formData.endTime}`;
-    const bookingId = `${selectedRoom.replace(/\s+/g, '_')}_${formData.date}_${formData.startTime.replace(':', '-')}_${formData.endTime.replace(':', '-')}_${Date.now()}`;
-    const bookingRef = doc(db, 'bookings', bookingId);
-
     const parsedMax = formData.maxAttendees ? parseInt(formData.maxAttendees, 10) : null;
+    const cleanName = formData.name.trim();
 
     setSubmitting(true);
     try {
-      await runTransaction(db, async (transaction) => {
-        const bookingDoc = await transaction.get(bookingRef);
-        if (bookingDoc.exists()) {
-          throw new Error('Esta sala ya está reservada en ese horario exacto.');
-        }
-        transaction.set(bookingRef, {
-          name: formData.name.trim(),
-          room: selectedRoom,
-          date: formData.date,
-          startTime: formData.startTime,
-          endTime: formData.endTime,
-          time: formattedTime,
-          maxAttendees: parsedMax,
-          activityType: formData.activityType || 'open',
-          targetAudience: formData.targetAudience || 'publico',
-          attendees: preAttendees,
-          userId: user ? user.uid : 'anonymous',
-          userEmail: user ? user.email : '',
-          userName: user ? (user.displayName || user.email) : 'Anónimo',
-          createdAt: new Date(),
-          whatsapp_sent: formData.announceOnWhatsApp ? true : false // Se marcará como true ya que lo enviaremos ahora
+      if (!isOvernight) {
+        // Reserva estándar dentro del mismo día
+        const formattedTime = `${formData.startTime} - ${formData.endTime}`;
+        const bookingId = `${selectedRoom.replace(/\s+/g, '_')}_${formData.date}_${formData.startTime.replace(':', '-')}_${formData.endTime.replace(':', '-')}_${Date.now()}`;
+        const bookingRef = doc(db, 'bookings', bookingId);
+
+        await runTransaction(db, async (transaction) => {
+          const bookingDoc = await transaction.get(bookingRef);
+          if (bookingDoc.exists()) {
+            throw new Error('Esta sala ya está reservada en ese horario exacto.');
+          }
+          transaction.set(bookingRef, {
+            name: cleanName,
+            room: selectedRoom,
+            date: formData.date,
+            startTime: formData.startTime,
+            endTime: formData.endTime,
+            time: formattedTime,
+            maxAttendees: parsedMax,
+            activityType: formData.activityType || 'open',
+            targetAudience: formData.targetAudience || 'publico',
+            attendees: preAttendees,
+            userId: user ? user.uid : 'anonymous',
+            userEmail: user ? user.email : '',
+            userName: user ? (user.displayName || user.email) : 'Anónimo',
+            createdAt: new Date(),
+            whatsapp_sent: formData.announceOnWhatsApp ? true : false
+          });
         });
-      });
+      } else {
+        // Reserva Trasnoche (Cruza medianoche: dividida en 2 segmentos vinculados)
+        const groupId = `overnight_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+        const doc1Id = `${selectedRoom.replace(/\s+/g, '_')}_${formData.date}_${formData.startTime.replace(':', '-')}_23-59_${Date.now()}`;
+        const doc2Id = `${selectedRoom.replace(/\s+/g, '_')}_${nextDateStr}_00-00_${formData.endTime.replace(':', '-')}_${Date.now()}`;
+
+        const ref1 = doc(db, 'bookings', doc1Id);
+        const ref2 = doc(db, 'bookings', doc2Id);
+
+        await runTransaction(db, async (transaction) => {
+          const snap1 = await transaction.get(ref1);
+          const snap2 = await transaction.get(ref2);
+          if (snap1.exists() || snap2.exists()) {
+            throw new Error('Esta sala ya está reservada en alguno de los dos días en ese horario.');
+          }
+
+          transaction.set(ref1, {
+            name: cleanName,
+            room: selectedRoom,
+            date: formData.date,
+            startTime: formData.startTime,
+            endTime: '23:59',
+            time: `${formData.startTime} - 23:59`,
+            fullTimeRange: `${formData.startTime} a ${formData.endTime} (+1 día)`,
+            isOvernight: true,
+            overnightGroupId: groupId,
+            overnightPart: 1,
+            maxAttendees: parsedMax,
+            activityType: formData.activityType || 'open',
+            targetAudience: formData.targetAudience || 'publico',
+            attendees: preAttendees,
+            userId: user ? user.uid : 'anonymous',
+            userEmail: user ? user.email : '',
+            userName: user ? (user.displayName || user.email) : 'Anónimo',
+            createdAt: new Date(),
+            whatsapp_sent: formData.announceOnWhatsApp ? true : false
+          });
+
+          transaction.set(ref2, {
+            name: `${cleanName} (Fin trasnoche)`,
+            room: selectedRoom,
+            date: nextDateStr,
+            startTime: '00:00',
+            endTime: formData.endTime,
+            time: `00:00 - ${formData.endTime}`,
+            fullTimeRange: `${formData.startTime} a ${formData.endTime} (inicio ${formatDisplayDateDMY(formData.date)})`,
+            isOvernight: true,
+            overnightGroupId: groupId,
+            overnightPart: 2,
+            maxAttendees: parsedMax,
+            activityType: formData.activityType || 'open',
+            targetAudience: formData.targetAudience || 'publico',
+            attendees: preAttendees,
+            userId: user ? user.uid : 'anonymous',
+            userEmail: user ? user.email : '',
+            userName: user ? (user.displayName || user.email) : 'Anónimo',
+            createdAt: new Date(),
+            whatsapp_sent: formData.announceOnWhatsApp ? true : false
+          });
+        });
+      }
       
-      // Enviar notificación a WhatsApp de forma asíncrona (fire and forget)
+      // Enviar notificación a WhatsApp con fecha DD-MM-YYYY
       if (formData.announceOnWhatsApp) {
         const appUrl = window.location.origin;
         const activityLabel = formData.activityType === 'closed' ? '🔒 Mesa Cerrada' : '🔓 Actividad Abierta';
@@ -260,13 +369,8 @@ export default function BookingModal({
         if (formData.targetAudience === 'semisocios') targetLabel = '🤝 Socios y Simpatizantes';
         if (formData.targetAudience === 'socios') targetLabel = '⭐ Exclusivo Socios';
 
-        // Formatear fecha YYYY-MM-DD a DD/MM/YYYY
-        let displayDate = formData.date;
-        if (formData.date && formData.date.includes('-')) {
-          const [y, m, d] = formData.date.split('-');
-          displayDate = `${d}/${m}/${y}`;
-        }
-
+        const displayDate = formatDisplayDateDMY(formData.date);
+        const displayNextDate = isOvernight ? formatDisplayDateDMY(nextDateStr) : '';
         const countPre = preAttendees.length;
         const preNamesList = preAttendees.map(a => a.name).join(', ');
         
@@ -277,7 +381,12 @@ export default function BookingModal({
           plazasText = `${countPre} pre-apuntado(s) (${preNamesList})`;
         }
 
-        const msg = `📢 *${formData.name.trim()}*\n📅 *${displayDate}* - ⏰ *${formData.startTime}* a *${formData.endTime}*\n📍 *${selectedRoom}*\n🎯 *Formato:* ${activityLabel} (${targetLabel})\n👥 *Plazas:* ${plazasText}\n🔗 *Apúntate en la App:* ${appUrl}`;
+        const dateString = isOvernight ? `${displayDate} ➔ ${displayNextDate}` : displayDate;
+        const timeString = isOvernight 
+          ? `${formData.startTime} a ${formData.endTime} (del día siguiente ${displayNextDate})`
+          : `${formData.startTime} a ${formData.endTime}`;
+
+        const msg = `📢 *${cleanName}*\n📅 *${dateString}* - ⏰ *${timeString}*\n📍 *${selectedRoom}*\n🎯 *Formato:* ${activityLabel} (${targetLabel})\n👥 *Plazas:* ${plazasText}\n🔗 *Apúntate en la App:* ${appUrl}`;
         
         sendWhatsAppMessage(msg).catch(err => console.error("Error enviando WhatsApp:", err));
       }
@@ -378,6 +487,15 @@ export default function BookingModal({
                 />
               </div>
             </div>
+            {/* Aviso visual si se detecta Reserva Trasnoche */}
+            {isOvernight && (
+              <div style={{ background: 'rgba(139, 92, 246, 0.15)', border: '1px solid var(--accent-primary)', borderRadius: '8px', padding: '0.7rem 0.9rem', fontSize: '0.85rem', color: '#c4b5fd', marginBottom: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <span style={{ fontSize: '1.2rem' }}>🌙</span>
+                <div>
+                  <strong>Reserva Trasnoche Detectada:</strong> La reserva abarcará de <strong>{formData.startTime}</strong> a <strong>23:59</strong> el <strong>{formatDisplayDateDMY(formData.date)}</strong> y continuará de <strong>00:00</strong> a <strong>{formData.endTime}</strong> el <strong>{formatDisplayDateDMY(nextDateStr)}</strong>.
+                </div>
+              </div>
+            )}
 
             {/* Configuración Bloque 4: Tipo de Actividad & Público Objetivo (Apilados verticalmente a Full Width para evitar overflow) */}
             <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border-light)', padding: '1rem', borderRadius: '8px', marginBottom: '1.2rem', width: '100%', boxSizing: 'border-box' }}>
