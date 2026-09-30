@@ -180,10 +180,10 @@ export function getEffectiveAppUrl() {
 export function buildCleaningGroupMessage({ assigneeName, weekRange, weekId = null, appUrl = null }) {
   const baseAppUrl = appUrl || getEffectiveAppUrl();
   const actionLink = weekId 
-    ? `\n🔗 *Enlace para Finalizar la Limpieza:*\n${baseAppUrl}/?action=complete_cleaning&weekId=${weekId}` 
+    ? `\n🔗 *Finalizar Limpieza:*\n${baseAppUrl}/?action=complete_cleaning&weekId=${weekId}` 
     : `\n🔗 *Ver cuadrante:*\n${baseAppUrl}`;
 
-  return `🧹 *[TURNO DE LIMPIEZA - W.A.R. LLEIDA]*\n📅 *Semana:* ${weekRange}\n👤 *Socio encargado:* *${assigneeName}*\n\nRecordamos el turno semanal para el mantenimiento y limpieza del local de la asociación W.A.R. Lleida.\n${actionLink}\n\n_(Nota: Por seguridad, al abrir el enlace únicamente el socio encargado con su usuario o un administrador podrán validar y registrar la finalización del turno)._`;
+  return `👤 *Socio Encargado:* *${assigneeName}*\n📅 *Semana:* ${weekRange}\n${actionLink}\n\n_(Nota: Por seguridad, al abrir el enlace únicamente el socio encargado con su usuario o un administrador podrán validar y registrar la finalización)._`;
 }
 
 /**

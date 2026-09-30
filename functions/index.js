@@ -182,7 +182,7 @@ async function executeSundayCleaningReminder() {
   const completeUrl = `${APP_URL}/?action=complete_cleaning&weekId=${nextWeekId}`;
   if (cleaningChatId && cleaningChatId.trim()) {
     try {
-      const groupMsg = `🧹 *[TURNO DE LIMPIEZA - W.A.R. LLEIDA]*\n📅 *Semana:* ${nextWeekRange}\n👤 *Socio encargado:* *${nextAssignee.name}*\n\nRecordamos el turno semanal para el mantenimiento y limpieza del local de la asociación W.A.R. Lleida.\n\n🔗 *Enlace para Finalizar la Limpieza:*\n${completeUrl}\n\n_(Nota: Por seguridad, al abrir el enlace únicamente el socio encargado con su usuario o un administrador podrán validar y registrar la finalización del turno)._`;
+      const groupMsg = `👤 *Socio Encargado:* *${nextAssignee.name}*\n📅 *Semana:* ${nextWeekRange}\n\n🔗 *Finalizar Limpieza:*\n${completeUrl}\n\n_(Nota: Por seguridad, al abrir el enlace únicamente el socio encargado con su usuario o un administrador podrán validar y registrar la finalización)._`;
       await sendGreenAPIMessage(cleaningChatId.trim(), groupMsg);
       console.log(`Mensaje grupal enviado al canal ${cleaningChatId}`);
     } catch (e) {
