@@ -67,10 +67,21 @@
   - Ruta privada `/analytics` protegida para Administradores con estadísticas mensuales de partidas, horas reservadas, ocupación por salas y afluencia por días de la semana con gráficos nativos en HTML/CSS.
   - Asistente de Limpieza Inteligente en la `CleaningCard` que consulta las reservas de la semana en curso y sugiere al socio asignado los días con 0 reservas o menor volumen de horas para limpiar el local de manera óptima.
 
+- **🎥 Bloque 7: Descripción de Actividades, Recursos y Tutoriales de Vídeo Embebidos (v1.1.0)**:
+  - **Campo de Descripción libre**: Textarea flexible en el modal de reserva con botón SVG "Insertar plantilla" (`Info:`, `Tutorial:`, `Reglas:`).
+  - **Detección inteligente de vídeo**: Soporte para YouTube (estándar, shorts, `youtu.be`) y Vimeo, incrustando reproductores responsivos en relación de aspecto nativa 16:9 (`aspectRatio: 16 / 9`) sin romper márgenes en móviles.
+  - **Acordeones colapsables para tutoriales**: Cada vídeo cuenta con su propio acordeón con icono SVG integrado para plegar/desplegar y no saturar espacio vertical en pantallas reducidas.
+  - **Conversión de enlaces web**: Cualquier URL (PDFs de reglamentos, webs oficiales, BoardGameGeek, Instagram, TikTok) se convierte automáticamente en enlace clicable seguro (`target="_blank" rel="noopener noreferrer"`) acompañado de icono SVG integrado.
+  - **Edición en vivo post-creación**: Organizadores y administradores pueden editar o añadir descripciones y tutoriales en cualquier momento desde el modal de la actividad.
+  - **Regla estricta de diseño**: Uso exclusivo de SVGs integrados inline en todos los componentes y prohibición absoluta de emojis en la interfaz de usuario.
+  - **Compatibilidad**: Conservación de la descripción al duplicar reservas y preservación del servicio de WhatsApp sin saturación.
+
 ---
 
 ## 🔒 4. Respaldo y Restauración
 
-- **Tag Git**: `v1.0.0-mvp-complete`
-- **Rama Backup**: `backup-mvp-complete`
-- **Comando de Restauración**: `git checkout v1.0.0-mvp-complete`
+- **Último Checkpoint de Respaldo**: `backup-post-activity-description` (30 de Septiembre de 2026)
+- **Checkpoint Anterior**: `backup-pre-activity-description`
+- **Archivo Zip Físico**: `_backups/`
+- **Tag Histórico MVP**: `v1.0.0-mvp-complete`
+- **Comando de Restauración**: `git checkout backup-post-activity-description`
