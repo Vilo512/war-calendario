@@ -85,46 +85,9 @@ exports.getICalFeed = onRequest(async (req, res) => {
 // ==========================================
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 
-const DEFAULT_SALT = 'WAR_LLEIDA_CLEANING_SALT_2026';
-const FALLBACK_SECRET = 'WAR_CLEANING_SEC_KEY_8f93b1d2e4a5c6';
 const GREEN_API_ID = process.env.GREEN_API_ID || "710722752167";
 const GREEN_API_TOKEN = process.env.GREEN_API_TOKEN || "1df6e87131a041749acfc26418ccb66657ccd142c4094a9eb0";
 const APP_URL = process.env.APP_URL || "https://warlendario.vercel.app";
-
-async function decryptPhone(encryptedObj) {
-  if (!encryptedObj || !encryptedObj.ciphertext || !encryptedObj.iv) return null;
-  try {
-    const enc = new TextEncoder();
-    const km = await crypto.subtle.importKey(
-      'raw',
-      enc.encode(process.env.ADMIN_ENCRYPTION_KEY || FALLBACK_SECRET),
-      'PBKDF2',
-      false,
-      ['deriveKey']
-    );
-    const key = await crypto.subtle.deriveKey(
-      { name: 'PBKDF2', salt: enc.encode(DEFAULT_SALT), iterations: 100000, hash: 'SHA-256' },
-      km,
-      { name: 'AES-GCM', length: 256 },
-      false,
-      ['encrypt', 'decrypt']
-    );
-
-    const ivBytes = new Uint8Array(Buffer.from(encryptedObj.iv, 'base64'));
-    const cipherBytes = new Uint8Array(Buffer.from(encryptedObj.ciphertext, 'base64'));
-
-    const decrypted = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: ivBytes },
-      key,
-      cipherBytes
-    );
-
-    return new TextDecoder().decode(decrypted);
-  } catch (e) {
-    console.error("Error descifrando teléfono en cloud function:", e);
-    return null;
-  }
-}
 
 async function sendGreenAPIMessage(chatId, message) {
   const url = `https://api.green-api.com/waInstance${GREEN_API_ID}/sendMessage/${GREEN_API_TOKEN}`;

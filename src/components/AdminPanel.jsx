@@ -38,7 +38,6 @@ import {
   calculateAssigneeForDate, 
   calculateCurrentAssignee 
 } from '../utils/cleaningUtils';
-import { saveUserPhone, getAllUserPhones, getUserPhone } from '../services/phoneBookService';
 
 export default function AdminPanel({ isOpen, onClose, user }) {
   const [users, setUsers] = useState([]);
@@ -46,9 +45,6 @@ export default function AdminPanel({ isOpen, onClose, user }) {
   const [cleaningMembers, setCleaningMembers] = useState([]);
   const [cleaningConfig, setCleaningConfig] = useState(null);
   const [cleaningChatId, setCleaningChatId] = useState(DEFAULT_CLEANING_CHAT_ID);
-  const [phonesMap, setPhonesMap] = useState({});
-  const [editingPhones, setEditingPhones] = useState({});
-  const [savingPhoneId, setSavingPhoneId] = useState(null);
   const [sendingReminder, setSendingReminder] = useState(false);
   const [weeksMap, setWeeksMap] = useState({});
   const [incidents, setIncidents] = useState([]);
@@ -228,14 +224,6 @@ export default function AdminPanel({ isOpen, onClose, user }) {
     return () => unsub();
   }, [isOpen]);
 
-  // Cargar teléfonos cifrados de socios (exclusivo Admin)
-  useEffect(() => {
-    if (!isOpen) return;
-    getAllUserPhones().then(map => {
-      setPhonesMap(map || {});
-    }).catch(err => console.error("Error cargando teléfonos cifrados:", err));
-  }, [isOpen]);
-
   // Escuchar permutas/excepciones de semanas
   useEffect(() => {
     if (!isOpen) return;
@@ -376,28 +364,6 @@ export default function AdminPanel({ isOpen, onClose, user }) {
     };
     saveCleaningMembers([...cleaningMembers, newItem]);
     setManualMemberName('');
-  };
-
-  // Guardar teléfono cifrado de usuario (exclusivo Admin)
-  const handleSavePhone = async (userId) => {
-    const rawVal = editingPhones[userId] !== undefined ? editingPhones[userId] : (phonesMap[userId] || '');
-    setSavingPhoneId(userId);
-    try {
-      const normalized = await saveUserPhone(userId, rawVal, user?.uid);
-      setPhonesMap(prev => {
-        const next = { ...prev };
-        if (normalized) next[userId] = normalized;
-        else delete next[userId];
-        return next;
-      });
-      setMsg(normalized ? '✓ Teléfono guardado y cifrado con éxito (AES-256).' : '✓ Teléfono eliminado del directorio.');
-      setTimeout(() => setMsg(''), 3500);
-    } catch (err) {
-      console.error("Error al guardar teléfono cifrado:", err);
-      setMsg('Error al guardar teléfono: ' + err.message);
-    } finally {
-      setSavingPhoneId(null);
-    }
   };
 
   // Guardar ID del canal de WhatsApp para limpieza
@@ -742,35 +708,6 @@ export default function AdminPanel({ isOpen, onClose, user }) {
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{u.email}</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-                    {/* Teléfono Cifrado exclusivo Admin */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: 'rgba(255,255,255,0.03)', padding: '3px 8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
-                      </svg>
-                      <input 
-                        type="tel"
-                        placeholder="Móvil WhatsApp..."
-                        value={editingPhones[u.id] !== undefined ? editingPhones[u.id] : (phonesMap[u.id] || '')}
-                        onChange={(e) => setEditingPhones(prev => ({ ...prev, [u.id]: e.target.value }))}
-                        className="form-input"
-                        style={{ padding: '0.2rem 0.4rem', width: '135px', fontSize: '0.8rem', background: 'transparent', border: 'none', color: '#ffffff' }}
-                      />
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
-                        title="Guardar teléfono (Cifrado AES-256)"
-                        onClick={() => handleSavePhone(u.id)}
-                        disabled={savingPhoneId === u.id}
-                      >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                        </svg>
-                        <span>{savingPhoneId === u.id ? '...' : (phonesMap[u.id] ? 'Guardar' : 'Añadir')}</span>
-                      </button>
-                    </div>
-
                     <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Estatus:</label>
                     <select 
                       className="form-input" 
