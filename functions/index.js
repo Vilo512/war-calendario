@@ -181,7 +181,7 @@ async function executeSundayCleaningReminder() {
 
   const configData = configSnap.data();
   const members = configData.members || [];
-  const cleaningChatId = configData.cleaningChatId || null;
+  const cleaningChatId = configData.cleaningChatId || "120363413772081898@g.us";
 
   if (members.length === 0) {
     console.warn("No hay miembros configurados en la lista de limpieza.");

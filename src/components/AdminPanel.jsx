@@ -26,7 +26,8 @@ import CleaningHistoryModal from './CleaningHistoryModal';
 import { recordCleaningHistory } from '../services/cleaningHistoryService';
 import { 
   sendWhatsAppMessage, 
-  sendCleaningCombinedReminders 
+  sendCleaningCombinedReminders,
+  DEFAULT_CLEANING_CHAT_ID
 } from '../services/whatsappService';
 import { 
   getWeekId, 
@@ -44,7 +45,7 @@ export default function AdminPanel({ isOpen, onClose, user }) {
   const [rooms, setRooms] = useState([]);
   const [cleaningMembers, setCleaningMembers] = useState([]);
   const [cleaningConfig, setCleaningConfig] = useState(null);
-  const [cleaningChatId, setCleaningChatId] = useState('');
+  const [cleaningChatId, setCleaningChatId] = useState(DEFAULT_CLEANING_CHAT_ID);
   const [phonesMap, setPhonesMap] = useState({});
   const [editingPhones, setEditingPhones] = useState({});
   const [savingPhoneId, setSavingPhoneId] = useState(null);
@@ -215,10 +216,13 @@ export default function AdminPanel({ isOpen, onClose, user }) {
         setCleaningConfig(data);
         if (data.cleaningChatId) {
           setCleaningChatId(data.cleaningChatId);
+        } else {
+          setCleaningChatId(DEFAULT_CLEANING_CHAT_ID);
         }
       } else {
         setCleaningMembers([]);
         setCleaningConfig({ members: [] });
+        setCleaningChatId(DEFAULT_CLEANING_CHAT_ID);
       }
     });
     return () => unsub();

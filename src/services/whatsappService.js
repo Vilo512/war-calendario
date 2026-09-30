@@ -3,6 +3,7 @@
 const GREEN_API_ID = import.meta.env.VITE_GREEN_API_ID || "710722696080";
 const GREEN_API_TOKEN = import.meta.env.VITE_GREEN_API_TOKEN || "10d56cb75a914e1fa5645eaa9ebc038b704f1e1a0c5947e9ae";
 const GREEN_API_CHAT_ID = import.meta.env.VITE_GREEN_API_CHAT_ID || "120363339095444763@g.us";
+export const DEFAULT_CLEANING_CHAT_ID = import.meta.env.VITE_GREEN_API_CLEANING_CHAT_ID || "120363413772081898@g.us";
 
 export async function sendWhatsAppMessage(message, customChatId = null) {
   const targetChatId = customChatId || GREEN_API_CHAT_ID;
@@ -199,11 +200,12 @@ export async function sendCleaningCombinedReminders({
 
   const assigneeName = assignee?.name || 'Socio';
 
-  // 1. Enviar al canal grupal de limpieza si está configurado
-  if (cleaningChatId && cleaningChatId.trim()) {
+  // 1. Enviar al canal grupal de limpieza (usando el configurado o el ID por defecto)
+  const effectiveGroupChatId = (cleaningChatId && cleaningChatId.trim()) || DEFAULT_CLEANING_CHAT_ID;
+  if (effectiveGroupChatId) {
     try {
       const groupMsg = buildCleaningGroupMessage({ assigneeName, weekRange, appUrl });
-      await sendWhatsAppMessage(groupMsg, cleaningChatId.trim());
+      await sendWhatsAppMessage(groupMsg, effectiveGroupChatId);
       results.groupSent = true;
     } catch (err) {
       console.error('Error enviando anuncio grupal de limpieza:', err);
