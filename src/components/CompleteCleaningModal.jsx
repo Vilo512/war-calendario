@@ -4,6 +4,7 @@ import { db } from '../firebase/config';
 import { isAdminRole } from '../utils/roleUtils';
 import { recordCleaningHistory } from '../services/cleaningHistoryService';
 import { formatWeekRange, calculateAssigneeForDate } from '../utils/cleaningUtils';
+import { sendCleaningCompletedNotification } from '../services/whatsappService';
 
 export default function CompleteCleaningModal({ isOpen, onClose, weekId, user, userRole }) {
   const [loading, setLoading] = useState(true);
@@ -11,6 +12,7 @@ export default function CompleteCleaningModal({ isOpen, onClose, weekId, user, u
   const [weekData, setWeekData] = useState(null);
   const [assignee, setAssignee] = useState(null);
   const [formattedRange, setFormattedRange] = useState('');
+  const [cleaningChatId, setCleaningChatId] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
@@ -51,6 +53,7 @@ export default function CompleteCleaningModal({ isOpen, onClose, weekId, user, u
 
         if (isMounted) {
           setAssignee(currentAssignee);
+          setCleaningChatId(configData?.cleaningChatId || null);
           const [y, m, d] = weekId.split('-').map(Number);
           setFormattedRange(formatWeekRange(new Date(y, m - 1, d)));
           setLoading(false);
@@ -117,6 +120,14 @@ export default function CompleteCleaningModal({ isOpen, onClose, weekId, user, u
           completedByName: completedByName
         });
       }
+
+      // 3. Enviar aviso de limpieza completada al grupo de WhatsApp
+      sendCleaningCompletedNotification({
+        assigneeName: assignee?.name || 'Socio',
+        completedByName: completedByName,
+        weekRange: formattedRange || weekId,
+        cleaningChatId: cleaningChatId
+      }).catch(err => console.warn('Error enviando WhatsApp de finalización:', err));
 
       setSuccessMsg(isCompletedByAdmin 
         ? 'Limpieza validada con éxito como Administrador.' 

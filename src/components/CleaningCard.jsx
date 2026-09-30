@@ -15,6 +15,7 @@ import IncidentModal from './IncidentModal';
 import CleaningHistoryModal from './CleaningHistoryModal';
 import { recordCleaningHistory, removeCleaningHistoryForWeek } from '../services/cleaningHistoryService';
 import { getSmartCleaningSuggestion } from '../services/smartCleaningService';
+import { sendCleaningCompletedNotification } from '../services/whatsappService';
 
 export default function CleaningCard({ user, userRole }) {
   const [config, setConfig] = useState(null);
@@ -161,6 +162,14 @@ export default function CleaningCard({ user, userRole }) {
           completedByUid: user?.uid || 'system',
           completedByName: completedByName
         });
+
+        // Enviar aviso de limpieza completada al grupo de WhatsApp
+        sendCleaningCompletedNotification({
+          assigneeName: assignee.name,
+          completedByName: completedByName,
+          weekRange: weekRange,
+          cleaningChatId: config?.cleaningChatId || null
+        }).catch(err => console.warn('Error enviando WhatsApp de finalización:', err));
       } else if (!status) {
         await removeCleaningHistoryForWeek(weekId);
       }

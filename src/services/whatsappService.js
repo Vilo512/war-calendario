@@ -258,5 +258,37 @@ export async function sendCleaningCombinedReminders({
   return results;
 }
 
+/**
+ * Genera el texto del mensaje para avisar al grupo de que la limpieza ha sido completada
+ */
+export function buildCleaningCompletedMessage({ assigneeName, completedByName = null, weekRange = '' }) {
+  const isByAdmin = completedByName && completedByName.startsWith('Finalizado por Admin:');
+  const details = isByAdmin 
+    ? `\n👤 *${completedByName}*` 
+    : '';
+
+  return `✅ *Limpieza completada:* *${assigneeName || 'Socio'}*\n📅 *Semana:* ${weekRange}${details}\n\n¡Muchas gracias por mantener a punto el local de W.A.R. Lleida! 🧹`;
+}
+
+/**
+ * Envía el aviso de limpieza completada al grupo de WhatsApp
+ */
+export async function sendCleaningCompletedNotification({
+  assigneeName,
+  completedByName = null,
+  weekRange = '',
+  cleaningChatId = null
+}) {
+  try {
+    const effectiveGroupChatId = (cleaningChatId && cleaningChatId.trim()) || DEFAULT_CLEANING_CHAT_ID;
+    const message = buildCleaningCompletedMessage({ assigneeName, completedByName, weekRange });
+    return await sendWhatsAppMessage(message, effectiveGroupChatId);
+  } catch (err) {
+    console.error("Error enviando WhatsApp de limpieza completada:", err);
+    return null;
+  }
+}
+
+
 
 
