@@ -89,7 +89,7 @@ const DEFAULT_SALT = 'WAR_LLEIDA_CLEANING_SALT_2026';
 const FALLBACK_SECRET = 'WAR_CLEANING_SEC_KEY_8f93b1d2e4a5c6';
 const GREEN_API_ID = process.env.GREEN_API_ID || "710722752167";
 const GREEN_API_TOKEN = process.env.GREEN_API_TOKEN || "1df6e87131a041749acfc26418ccb66657ccd142c4094a9eb0";
-const APP_URL = "https://warcalendario.web.app";
+const APP_URL = process.env.APP_URL || "https://warlendario.vercel.app";
 
 async function decryptPhone(encryptedObj) {
   if (!encryptedObj || !encryptedObj.ciphertext || !encryptedObj.iv) return null;
@@ -219,7 +219,7 @@ async function executeSundayCleaningReminder() {
   const completeUrl = `${APP_URL}/?action=complete_cleaning&weekId=${nextWeekId}`;
   if (cleaningChatId && cleaningChatId.trim()) {
     try {
-      const groupMsg = `🧹 *[TURNO DE LIMPIEZA - W.A.R. LLEIDA]*\n📅 *Semana entrante:* ${nextWeekRange}\n👤 *Socio encargado:* *${nextAssignee.name}*\n\nRecordamos que este es el turno asignado para el mantenimiento y limpieza del local de la asociación W.A.R. Lleida.\n\n🔗 *Finalizar Limpieza:* ${completeUrl}\n\n_(Nota: Por seguridad, únicamente el socio encargado o un administrador pueden dar por finalizada la tarea desde el enlace)._`;
+      const groupMsg = `🧹 *[TURNO DE LIMPIEZA - W.A.R. LLEIDA]*\n📅 *Semana:* ${nextWeekRange}\n👤 *Socio encargado:* *${nextAssignee.name}*\n\nRecordamos el turno semanal para el mantenimiento y limpieza del local de la asociación W.A.R. Lleida.\n\n🔗 *Enlace para Finalizar la Limpieza:*\n${completeUrl}\n\n_(Nota: Por seguridad, al abrir el enlace únicamente el socio encargado con su usuario o un administrador podrán validar y registrar la finalización del turno)._`;
       await sendGreenAPIMessage(cleaningChatId.trim(), groupMsg);
       console.log(`Mensaje grupal enviado al canal ${cleaningChatId}`);
     } catch (e) {

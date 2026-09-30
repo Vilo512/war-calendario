@@ -153,15 +153,25 @@ export function buildWhatsAppCancelText(booking) {
   return `❌ *[EVENTO CANCELADO]* ❌\n📢 *${name}*\n📅 *${displayDate}* - ⏰ *${timeText}*\n📍 *${room}*\n\n_Este evento ha sido cancelado en el calendario._`;
 }
 
+export function getEffectiveAppUrl() {
+  if (typeof window !== 'undefined' && window.location) {
+    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      return window.location.origin;
+    }
+  }
+  return "https://warlendario.vercel.app";
+}
+
 /**
  * Genera el texto del mensaje para el canal grupal de limpieza con el enlace de finalización protegido
  */
-export function buildCleaningGroupMessage({ assigneeName, weekRange, weekId = null, appUrl = window.location.origin }) {
+export function buildCleaningGroupMessage({ assigneeName, weekRange, weekId = null, appUrl = null }) {
+  const baseAppUrl = appUrl || getEffectiveAppUrl();
   const actionLink = weekId 
-    ? `\n🔗 *Finalizar Limpieza:* ${appUrl}/?action=complete_cleaning&weekId=${weekId}` 
-    : `\n🔗 *Ver cuadrante:* ${appUrl}`;
+    ? `\n🔗 *Enlace para Finalizar la Limpieza:*\n${baseAppUrl}/?action=complete_cleaning&weekId=${weekId}` 
+    : `\n🔗 *Ver cuadrante:*\n${baseAppUrl}`;
 
-  return `🧹 *[TURNO DE LIMPIEZA - W.A.R. LLEIDA]*\n📅 *Semana entrante:* ${weekRange}\n👤 *Socio encargado:* *${assigneeName}*\n\nRecordamos que este es el turno asignado para el mantenimiento y limpieza del local de la asociación W.A.R. Lleida.${actionLink}\n\n_(Nota: Por seguridad, únicamente el socio encargado o un administrador pueden dar por finalizada la tarea desde el enlace)._`;
+  return `🧹 *[TURNO DE LIMPIEZA - W.A.R. LLEIDA]*\n📅 *Semana:* ${weekRange}\n👤 *Socio encargado:* *${assigneeName}*\n\nRecordamos el turno semanal para el mantenimiento y limpieza del local de la asociación W.A.R. Lleida.\n${actionLink}\n\n_(Nota: Por seguridad, al abrir el enlace únicamente el socio encargado con su usuario o un administrador podrán validar y registrar la finalización del turno)._`;
 }
 
 /**
@@ -172,7 +182,7 @@ export async function sendCleaningCombinedReminders({
   weekRange,
   assignee,
   cleaningChatId = null,
-  appUrl = window.location.origin
+  appUrl = null
 }) {
   const results = {
     groupSent: false,
@@ -180,12 +190,13 @@ export async function sendCleaningCombinedReminders({
   };
 
   const assigneeName = assignee?.name || 'Socio';
+  const effectiveAppUrl = appUrl || getEffectiveAppUrl();
 
   // Enviar ÚNICAMENTE al canal grupal de limpieza (usando el configurado o el ID por defecto)
   const effectiveGroupChatId = (cleaningChatId && cleaningChatId.trim()) || DEFAULT_CLEANING_CHAT_ID;
   if (effectiveGroupChatId) {
     try {
-      const groupMsg = buildCleaningGroupMessage({ assigneeName, weekRange, weekId, appUrl });
+      const groupMsg = buildCleaningGroupMessage({ assigneeName, weekRange, weekId, appUrl: effectiveAppUrl });
       await sendWhatsAppMessage(groupMsg, effectiveGroupChatId);
       results.groupSent = true;
     } catch (err) {
