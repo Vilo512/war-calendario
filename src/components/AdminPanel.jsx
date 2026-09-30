@@ -414,7 +414,7 @@ export default function AdminPanel({ isOpen, onClose, user }) {
     }
   };
 
-  // Enviar aviso dominical anticipado para la próxima semana (combinado grupal + privado)
+  // Enviar aviso dominical anticipado para la próxima semana (exclusivamente al grupo)
   const handleSendSundayReminder = async () => {
     if (sendingReminder) return;
     setSendingReminder(true);
@@ -442,16 +442,10 @@ export default function AdminPanel({ isOpen, onClose, user }) {
         return;
       }
 
-      let phone = null;
-      if (nextAssignee.id && !nextAssignee.isManual) {
-        phone = phonesMap[nextAssignee.id] || (await getUserPhone(nextAssignee.id));
-      }
-
       const res = await sendCleaningCombinedReminders({
         weekId: nextWId,
         weekRange: nextWRange,
         assignee: nextAssignee,
-        phone,
         cleaningChatId: cleaningChatId || null
       });
 
@@ -464,19 +458,12 @@ export default function AdminPanel({ isOpen, onClose, user }) {
         weekRange: nextWRange
       }, { merge: true });
 
-      let feedback = `✓ Aviso del Domingo enviado para ${nextAssignee.name} (${nextWRange}).`;
-      if (res.groupSent && res.directSent) {
-        feedback += ' [Canal WhatsApp OK | Privado OK]';
-      } else if (res.groupSent) {
-        feedback += phone ? ' [Canal WhatsApp OK | Privado falló]' : ' [Canal WhatsApp OK | Socio sin móvil registrado]';
-      } else if (res.directSent) {
-        feedback += ' [WhatsApp Privado OK | Canal grupal no configurado]';
-      } else if (res.errors.length > 0) {
-        feedback += ` (Errores: ${res.errors.join('; ')})`;
+      if (res.groupSent) {
+        setMsg(`✓ Aviso del Domingo publicado en el grupo para ${nextAssignee.name} (${nextWRange}).`);
+      } else {
+        setMsg(`No se pudo enviar al grupo: ${res.errors.join('; ')}`);
       }
-
-      setMsg(feedback);
-      setTimeout(() => setMsg(''), 6000);
+      setTimeout(() => setMsg(''), 5000);
     } catch (err) {
       console.error("Error al enviar aviso de domingo:", err);
       setMsg('Error enviando aviso: ' + err.message);
@@ -485,7 +472,7 @@ export default function AdminPanel({ isOpen, onClose, user }) {
     }
   };
 
-  // Enviar recordatorio privado al socio de la semana en curso
+  // Reenviar recordatorio al grupo para el socio de la semana en curso
   const handleSendCurrentWeekReminder = async () => {
     if (sendingReminder) return;
     setSendingReminder(true);
@@ -512,33 +499,21 @@ export default function AdminPanel({ isOpen, onClose, user }) {
         return;
       }
 
-      let phone = null;
-      if (curAssignee.id && !curAssignee.isManual) {
-        phone = phonesMap[curAssignee.id] || (await getUserPhone(curAssignee.id));
-      }
-
-      if (!phone) {
-        alert(`El socio asignado para esta semana (${curAssignee.name}) no tiene teléfono registrado en la pestaña Usuarios.`);
-        setSendingReminder(false);
-        return;
-      }
-
       const res = await sendCleaningCombinedReminders({
         weekId: curWId,
         weekRange: curWRange,
         assignee: curAssignee,
-        phone,
-        cleaningChatId: null
+        cleaningChatId: cleaningChatId || null
       });
 
-      if (res.directSent) {
-        setMsg(`✓ Recordatorio privado de WhatsApp enviado a ${curAssignee.name}.`);
+      if (res.groupSent) {
+        setMsg(`✓ Recordatorio publicado en el grupo para ${curAssignee.name} (${curWRange}).`);
       } else {
-        setMsg(`No se pudo enviar WhatsApp privado a ${curAssignee.name}: ${res.errors.join('; ')}`);
+        setMsg(`No se pudo publicar en el grupo: ${res.errors.join('; ')}`);
       }
       setTimeout(() => setMsg(''), 5000);
     } catch (err) {
-      console.error("Error enviando recordatorio de semana actual:", err);
+      console.error("Error enviando recordatorio al grupo:", err);
       setMsg('Error enviando recordatorio: ' + err.message);
     } finally {
       setSendingReminder(false);
@@ -903,13 +878,13 @@ export default function AdminPanel({ isOpen, onClose, user }) {
                   onClick={handleSendSundayReminder}
                   disabled={sendingReminder}
                   style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                  title="Envía el anuncio anticipado del domingo para la próxima semana (Canal grupal + WhatsApp privado al socio con link de finalización)"
+                  title="Publica el anuncio anticipado del domingo para la próxima semana en el grupo de WhatsApp"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="22" y1="2" x2="11" y2="13"></line>
                     <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                   </svg>
-                  <span>{sendingReminder ? 'Enviando aviso...' : 'Enviar Aviso del Domingo (Semana Entrante)'}</span>
+                  <span>{sendingReminder ? 'Enviando aviso...' : 'Enviar Aviso del Domingo al Grupo (Semana Entrante)'}</span>
                 </button>
 
                 <button 
@@ -918,13 +893,13 @@ export default function AdminPanel({ isOpen, onClose, user }) {
                   onClick={handleSendCurrentWeekReminder}
                   disabled={sendingReminder}
                   style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                  title="Envía un recordatorio privado al socio asignado de la semana actual con el enlace directo para finalizar la limpieza"
+                  title="Reenvía el recordatorio al grupo de WhatsApp con el enlace directo para finalizar la limpieza"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                     <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                   </svg>
-                  <span>Enviar Recordatorio Privado (Semana Actual)</span>
+                  <span>Reenviar Recordatorio al Grupo (Semana Actual)</span>
                 </button>
               </div>
             </div>

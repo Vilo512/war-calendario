@@ -215,19 +215,11 @@ async function executeSundayCleaningReminder() {
     return { error: 'No assignee determined' };
   }
 
-  // 4. Buscar teléfono cifrado si existe
-  let decryptedPhone = null;
-  if (nextAssignee.id && !nextAssignee.isManual) {
-    const phoneSnap = await db.collection('admin_phone_book').doc(nextAssignee.id).get();
-    if (phoneSnap.exists) {
-      decryptedPhone = await decryptPhone(phoneSnap.data());
-    }
-  }
-
-  // 5. Enviar mensaje al canal grupal si está configurado
+  // 4. Enviar mensaje EXCLUSIVAMENTE al grupo de WhatsApp de limpieza
+  const completeUrl = `${APP_URL}/?action=complete_cleaning&weekId=${nextWeekId}`;
   if (cleaningChatId && cleaningChatId.trim()) {
     try {
-      const groupMsg = `🧹 *[TURNO DE LIMPIEZA - W.A.R. LLEIDA]*\n📅 *Semana entrante:* ${nextWeekRange}\n👤 *Socio encargado:* ${nextAssignee.name}\n\nRecordamos que la semana entrante este es el turno asignado para el mantenimiento y limpieza del local de la asociación W.A.R. Lleida.\nSi necesitas gestionar una permuta de turno, puedes hacerlo desde el cuadrante en la web:\n🔗 ${APP_URL}`;
+      const groupMsg = `🧹 *[TURNO DE LIMPIEZA - W.A.R. LLEIDA]*\n📅 *Semana entrante:* ${nextWeekRange}\n👤 *Socio encargado:* *${nextAssignee.name}*\n\nRecordamos que este es el turno asignado para el mantenimiento y limpieza del local de la asociación W.A.R. Lleida.\n\n🔗 *Finalizar Limpieza:* ${completeUrl}\n\n_(Nota: Por seguridad, únicamente el socio encargado o un administrador pueden dar por finalizada la tarea desde el enlace)._`;
       await sendGreenAPIMessage(cleaningChatId.trim(), groupMsg);
       console.log(`Mensaje grupal enviado al canal ${cleaningChatId}`);
     } catch (e) {
@@ -235,20 +227,7 @@ async function executeSundayCleaningReminder() {
     }
   }
 
-  // 6. Enviar mensaje privado directo al socio si tiene teléfono
-  if (decryptedPhone) {
-    try {
-      const cleanPhone = String(decryptedPhone).replace(/\D/g, '');
-      const completeUrl = `${APP_URL}/?action=complete_cleaning&weekId=${nextWeekId}`;
-      const directMsg = `🧹 *[RECORDATORIO DE TURNO DE LIMPIEZA - W.A.R. LLEIDA]*\n¡Hola ${nextAssignee.name}!\n\nTe recordamos que te corresponde el turno de limpieza del local de la asociación W.A.R. Lleida (*${nextWeekRange}*).\n\nCuando hayas realizado y terminado las tareas de limpieza, pulsa en el siguiente enlace para darla por completada en la plataforma:\n🔗 *Finalizar Limpieza:* ${completeUrl}\n\n_(Nota: Por motivos de seguridad, únicamente tú con tu cuenta de usuario o un administrador podéis finalizar esta tarea)._`;
-      await sendGreenAPIMessage(`${cleanPhone}@c.us`, directMsg);
-      console.log(`WhatsApp privado enviado a ${nextAssignee.name} (${cleanPhone})`);
-    } catch (e) {
-      console.error("Error enviando WhatsApp privado al socio:", e);
-    }
-  }
-
-  // 7. Marcar como anunciado en la semana de Firestore
+  // 5. Marcar como anunciado en la semana de Firestore
   await db.collection('cleaning_schedule').doc(nextWeekId).set({
     announcedOnWhatsApp: true,
     announcedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -257,7 +236,7 @@ async function executeSundayCleaningReminder() {
     weekRange: nextWeekRange
   }, { merge: true });
 
-  return { success: true, nextWeekId, assignee: nextAssignee.name, phoneNotified: Boolean(decryptedPhone) };
+  return { success: true, nextWeekId, assignee: nextAssignee.name, groupSent: true };
 }
 
 // Disparador programado: Todos los domingos a las 19:00 hora peninsular española

@@ -154,74 +154,43 @@ export function buildWhatsAppCancelText(booking) {
 }
 
 /**
- * Genera el texto del mensaje para el canal grupal de limpieza
+ * Genera el texto del mensaje para el canal grupal de limpieza con el enlace de finalización protegido
  */
-export function buildCleaningGroupMessage({ assigneeName, weekRange, appUrl = window.location.origin }) {
-  return `🧹 *[TURNO DE LIMPIEZA - W.A.R. LLEIDA]*\n📅 *Semana entrante:* ${weekRange}\n👤 *Socio encargado:* ${assigneeName}\n\nRecordamos que la semana entrante este es el turno asignado para el mantenimiento y limpieza del local de la asociación W.A.R. Lleida.\nSi necesitas gestionar una permuta de turno, puedes hacerlo desde el cuadrante en la web:\n🔗 ${appUrl}`;
+export function buildCleaningGroupMessage({ assigneeName, weekRange, weekId = null, appUrl = window.location.origin }) {
+  const actionLink = weekId 
+    ? `\n🔗 *Finalizar Limpieza:* ${appUrl}/?action=complete_cleaning&weekId=${weekId}` 
+    : `\n🔗 *Ver cuadrante:* ${appUrl}`;
+
+  return `🧹 *[TURNO DE LIMPIEZA - W.A.R. LLEIDA]*\n📅 *Semana entrante:* ${weekRange}\n👤 *Socio encargado:* *${assigneeName}*\n\nRecordamos que este es el turno asignado para el mantenimiento y limpieza del local de la asociación W.A.R. Lleida.${actionLink}\n\n_(Nota: Por seguridad, únicamente el socio encargado o un administrador pueden dar por finalizada la tarea desde el enlace)._`;
 }
 
 /**
- * Genera el texto del recordatorio privado directo para el socio asignado
- */
-export function buildCleaningDirectMessage({ assigneeName, weekRange, weekId, appUrl = window.location.origin }) {
-  const completeUrl = `${appUrl}/?action=complete_cleaning&weekId=${weekId}`;
-  return `🧹 *[RECORDATORIO DE TURNO DE LIMPIEZA - W.A.R. LLEIDA]*\n¡Hola ${assigneeName}!\n\nTe recordamos que te corresponde el turno de limpieza del local de la asociación W.A.R. Lleida (*${weekRange}*).\n\nCuando hayas realizado y terminado las tareas de limpieza, pulsa en el siguiente enlace para darla por completada en la plataforma:\n🔗 *Finalizar Limpieza:* ${completeUrl}\n\n_(Nota: Por motivos de seguridad, únicamente tú con tu cuenta de usuario o un administrador podéis finalizar esta tarea)._`;
-}
-
-/**
- * Envía un mensaje directo privado a un número de WhatsApp
- */
-export async function sendDirectWhatsAppMessage(phoneNumber, message) {
-  if (!phoneNumber || !message) {
-    throw new Error('Número de teléfono y mensaje son requeridos');
-  }
-  // Limpiar caracteres no numéricos
-  const cleanPhone = String(phoneNumber).replace(/\D/g, '');
-  const targetChatId = `${cleanPhone}@c.us`;
-  return sendWhatsAppMessage(message, targetChatId);
-}
-
-/**
- * Orquestador de envío combinado de recordatorios de limpieza (Canal + Privado)
+ * Orquestador de envío de recordatorios de limpieza EXCLUSIVAMENTE al canal grupal de limpieza
  */
 export async function sendCleaningCombinedReminders({
   weekId,
   weekRange,
   assignee,
-  phone = null,
   cleaningChatId = null,
   appUrl = window.location.origin
 }) {
   const results = {
     groupSent: false,
-    directSent: false,
     errors: []
   };
 
   const assigneeName = assignee?.name || 'Socio';
 
-  // 1. Enviar al canal grupal de limpieza (usando el configurado o el ID por defecto)
+  // Enviar ÚNICAMENTE al canal grupal de limpieza (usando el configurado o el ID por defecto)
   const effectiveGroupChatId = (cleaningChatId && cleaningChatId.trim()) || DEFAULT_CLEANING_CHAT_ID;
   if (effectiveGroupChatId) {
     try {
-      const groupMsg = buildCleaningGroupMessage({ assigneeName, weekRange, appUrl });
+      const groupMsg = buildCleaningGroupMessage({ assigneeName, weekRange, weekId, appUrl });
       await sendWhatsAppMessage(groupMsg, effectiveGroupChatId);
       results.groupSent = true;
     } catch (err) {
       console.error('Error enviando anuncio grupal de limpieza:', err);
       results.errors.push(`Error canal grupal: ${err.message}`);
-    }
-  }
-
-  // 2. Enviar mensaje privado directo al socio si tiene teléfono
-  if (phone && phone.trim()) {
-    try {
-      const directMsg = buildCleaningDirectMessage({ assigneeName, weekRange, weekId, appUrl });
-      await sendDirectWhatsAppMessage(phone.trim(), directMsg);
-      results.directSent = true;
-    } catch (err) {
-      console.error('Error enviando WhatsApp privado al socio:', err);
-      results.errors.push(`Error WhatsApp privado: ${err.message}`);
     }
   }
 
