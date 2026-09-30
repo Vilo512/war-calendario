@@ -57,7 +57,13 @@ export default async function handler(req, res) {
       body: JSON.stringify(payload)
     });
 
-    const data = await response.json();
+    const rawText = await response.text();
+    let data;
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      data = { error: rawText };
+    }
 
     if (!response.ok) {
       console.error(`Error de Green API (${methodPath}):`, data);

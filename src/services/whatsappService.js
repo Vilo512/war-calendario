@@ -38,7 +38,19 @@ export async function sendWhatsAppMessage(message, customChatId = null) {
       })
     });
 
-    const data = await response.json();
+    const rawText = await response.text();
+    let data;
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      data = { error: rawText };
+    }
+
+    if (!response.ok) {
+      const errorMsg = data?.message || data?.error || `HTTP ${response.status}: ${rawText}`;
+      throw new Error(errorMsg);
+    }
+
     return data;
   } catch (err) {
     console.error("Error enviando WhatsApp desde el cliente:", err);
