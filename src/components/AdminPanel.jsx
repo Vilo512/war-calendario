@@ -27,6 +27,7 @@ import { recordCleaningHistory } from '../services/cleaningHistoryService';
 import { 
   sendWhatsAppMessage, 
   sendCleaningCombinedReminders,
+  sendCleaningPendingReminder,
   DEFAULT_CLEANING_CHAT_ID
 } from '../services/whatsappService';
 import { 
@@ -438,13 +439,21 @@ export default function AdminPanel({ isOpen, onClose, user }) {
     }
   };
 
-  // Reenviar recordatorio al grupo para el socio de la semana en curso
+  // Enviar aviso de limpieza NO completada al grupo para el socio de la semana en curso
   const handleSendCurrentWeekReminder = async () => {
     if (sendingReminder) return;
     setSendingReminder(true);
     try {
       const curWId = getWeekId();
       const curWRange = formatWeekRange();
+
+      // Comprobar si ya figura como completada
+      if (weeksMap[curWId] && weeksMap[curWId].completed) {
+        const completedInfo = weeksMap[curWId].completedBy ? ` por ${weeksMap[curWId].completedBy}` : '';
+        alert(`La limpieza de esta semana ya figura como completada${completedInfo}.`);
+        setSendingReminder(false);
+        return;
+      }
 
       let curAssignee = null;
       if (weeksMap[curWId] && weeksMap[curWId].assigneeName) {
@@ -465,21 +474,25 @@ export default function AdminPanel({ isOpen, onClose, user }) {
         return;
       }
 
-      const res = await sendCleaningCombinedReminders({
+      const res = await sendCleaningPendingReminder({
         weekId: curWId,
-        weekRange: curWRange,
         assignee: curAssignee,
         cleaningChatId: cleaningChatId || null
       });
 
       if (res.groupSent) {
-        setMsg(`✓ Recordatorio publicado en el grupo para ${curAssignee.name} (${curWRange}).`);
+        await setDoc(doc(db, 'cleaning_schedule', curWId), {
+          pendingAlertSent: true,
+          pendingAlertSentAt: new Date()
+        }, { merge: true });
+
+        setMsg(`✓ Aviso de limpieza pendiente publicado en el grupo para ${curAssignee.name}.`);
       } else {
         setMsg(`No se pudo publicar en el grupo: ${res.errors.join('; ')}`);
       }
       setTimeout(() => setMsg(''), 5000);
     } catch (err) {
-      console.error("Error enviando recordatorio al grupo:", err);
+      console.error("Error enviando aviso de limpieza pendiente al grupo:", err);
       setMsg('Error enviando recordatorio: ' + err.message);
     } finally {
       setSendingReminder(false);
@@ -811,32 +824,33 @@ export default function AdminPanel({ isOpen, onClose, user }) {
               <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
                 <button 
                   type="button"
+                  className="btn btn-secondary"
+                  onClick={handleSendCurrentWeekReminder}
+                  disabled={sendingReminder}
+                  style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  title="Envía el aviso al grupo advirtiendo que la limpieza de la semana actual no ha sido marcada como completada (previsto para los domingos a las 18:00)"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                  </svg>
+                  <span>{sendingReminder ? 'Enviando...' : 'Aviso Limpieza No Completada (Semana Actual)'}</span>
+                </button>
+
+                <button 
+                  type="button"
                   className="btn"
                   onClick={handleSendSundayReminder}
                   disabled={sendingReminder}
                   style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                  title="Publica el anuncio anticipado del domingo para la próxima semana en el grupo de WhatsApp"
+                  title="Publica el anuncio de la próxima semana en el grupo de WhatsApp (previsto para los domingos a las 20:00)"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="22" y1="2" x2="11" y2="13"></line>
                     <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                   </svg>
-                  <span>{sendingReminder ? 'Enviando aviso...' : 'Enviar Aviso del Domingo al Grupo (Semana Entrante)'}</span>
-                </button>
-
-                <button 
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={handleSendCurrentWeekReminder}
-                  disabled={sendingReminder}
-                  style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                  title="Reenvía el recordatorio al grupo de WhatsApp con el enlace directo para finalizar la limpieza"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                  </svg>
-                  <span>Reenviar Recordatorio al Grupo (Semana Actual)</span>
+                  <span>{sendingReminder ? 'Enviando...' : 'Aviso Semana Entrante (Domingo 20:00)'}</span>
                 </button>
               </div>
             </div>

@@ -186,8 +186,47 @@ export function buildCleaningGroupMessage({ assigneeName, weekRange, weekId = nu
   return `👤 *Socio Encargado:* *${assigneeName}*\n📅 *Semana:* ${weekRange}\n${actionLink}\n\n_(Nota: Por seguridad, al abrir el enlace únicamente el socio encargado con su usuario o un administrador podrán validar y registrar la finalización)._`;
 }
 
+export function buildCleaningPendingMessage({ assigneeName, weekId, appUrl = null }) {
+  const baseAppUrl = appUrl || getEffectiveAppUrl();
+  const actionLink = `\n🔗 *Finalizar Limpieza:*\n${baseAppUrl}/?action=complete_cleaning&weekId=${weekId}`;
+
+  return `⚠️ *${assigneeName}* no ha marcado que la limpieza haya sido completada.\n\nEn caso de que ya la hayas realizado y se te haya olvidado registrarla en la web:${actionLink}\n\n_(Nota: Por seguridad, al abrir el enlace únicamente el socio encargado con su usuario o un administrador podrán validar y registrar la finalización)._`;
+}
+
 /**
- * Orquestador de envío de recordatorios de limpieza EXCLUSIVAMENTE al canal grupal de limpieza
+ * Orquestador para enviar el aviso de limpieza NO completada al canal grupal
+ */
+export async function sendCleaningPendingReminder({
+  weekId,
+  assignee,
+  cleaningChatId = null,
+  appUrl = null
+}) {
+  const results = {
+    groupSent: false,
+    errors: []
+  };
+
+  const assigneeName = assignee?.name || 'Socio';
+  const effectiveAppUrl = appUrl || getEffectiveAppUrl();
+
+  const effectiveGroupChatId = (cleaningChatId && cleaningChatId.trim()) || DEFAULT_CLEANING_CHAT_ID;
+  if (effectiveGroupChatId) {
+    try {
+      const groupMsg = buildCleaningPendingMessage({ assigneeName, weekId, appUrl: effectiveAppUrl });
+      await sendWhatsAppMessage(groupMsg, effectiveGroupChatId);
+      results.groupSent = true;
+    } catch (err) {
+      console.error('Error enviando aviso de limpieza no completada:', err);
+      results.errors.push(`Error canal grupal: ${err.message}`);
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Orquestador para enviar el aviso del domingo para la próxima semana al canal grupal
  */
 export async function sendCleaningCombinedReminders({
   weekId,
@@ -204,7 +243,6 @@ export async function sendCleaningCombinedReminders({
   const assigneeName = assignee?.name || 'Socio';
   const effectiveAppUrl = appUrl || getEffectiveAppUrl();
 
-  // Enviar ÚNICAMENTE al canal grupal de limpieza (usando el configurado o el ID por defecto)
   const effectiveGroupChatId = (cleaningChatId && cleaningChatId.trim()) || DEFAULT_CLEANING_CHAT_ID;
   if (effectiveGroupChatId) {
     try {
@@ -219,4 +257,6 @@ export async function sendCleaningCombinedReminders({
 
   return results;
 }
+
+
 

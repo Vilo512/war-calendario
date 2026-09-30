@@ -99,6 +99,15 @@ async function sendGreenAPIMessage(chatId, message) {
   return response.json();
 }
 
+function calculateCurrentMonday(d = new Date()) {
+  const date = new Date(d);
+  const day = date.getDay();
+  const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+  date.setDate(diff);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
 function calculateNextMonday(d = new Date()) {
   const date = new Date(d);
   const day = date.getDay();
@@ -118,6 +127,101 @@ function formatNextWeekRange(monday) {
   return `Lun ${mDay}/${mMonth} - Dom ${sDay}/${sMonth}`;
 }
 
+/**
+ * Comprueba los domingos a las 18:00 si la limpieza de la semana en curso NO se ha completado.
+ * Solo envía aviso al grupo de WhatsApp si sigue sin completar.
+ */
+async function executeSundayPendingCleaningCheck() {
+  const currentMonday = calculateCurrentMonday();
+  const yyyy = currentMonday.getFullYear();
+  const mm = String(currentMonday.getMonth() + 1).padStart(2, '0');
+  const dd = String(currentMonday.getDate()).padStart(2, '0');
+  const currentWeekId = `${yyyy}-${mm}-${dd}`;
+
+  // 1. Obtener documento de la semana actual
+  const weekDocSnap = await db.collection('cleaning_schedule').doc(currentWeekId).get();
+  const weekData = weekDocSnap.exists ? weekDocSnap.data() : null;
+
+  // Si ya está completada, silencio (no se envía nada)
+  if (weekData && weekData.completed) {
+    console.log(`La limpieza de la semana ${currentWeekId} ya figura como completada. No se envía aviso.`);
+    return { completed: true, weekId: currentWeekId };
+  }
+
+  // Si ya se envió la alerta de pendiente, evitar duplicar el aviso
+  if (weekData && weekData.pendingAlertSent) {
+    console.log(`El aviso de limpieza pendiente para la semana ${currentWeekId} ya fue enviado previamente.`);
+    return { alreadySent: true, weekId: currentWeekId };
+  }
+
+  // 2. Obtener config global
+  const configSnap = await db.collection('cleaning_schedule').doc('config').get();
+  if (!configSnap.exists) {
+    console.warn("No existe el documento de configuración cleaning_schedule/config.");
+    return { error: 'No config found' };
+  }
+
+  const configData = configSnap.data();
+  const members = configData.members || [];
+  const cleaningChatId = configData.cleaningChatId || "120363413772081898@g.us";
+
+  if (members.length === 0) {
+    console.warn("No hay miembros configurados en la lista de limpieza.");
+    return { error: 'No members in cleaning schedule' };
+  }
+
+  // 3. Determinar socio asignado para la semana en curso
+  let currentAssignee = null;
+  if (weekData && weekData.assigneeName) {
+    currentAssignee = {
+      id: weekData.assigneeId,
+      name: weekData.assigneeName,
+      isManual: weekData.isManual || false
+    };
+  } else {
+    const startDate = configData.startDate?.toDate ? configData.startDate.toDate() : new Date();
+    const startMon = new Date(startDate);
+    const sDay = startMon.getDay();
+    startMon.setDate(startMon.getDate() - sDay + (sDay === 0 ? -6 : 1));
+    startMon.setHours(0, 0, 0, 0);
+
+    const diffDays = Math.floor((currentMonday.getTime() - startMon.getTime()) / (1000 * 3600 * 24));
+    const weeksPassed = Math.floor(diffDays / 7);
+    const currentIndex = ((weeksPassed % members.length) + members.length) % members.length;
+    currentAssignee = members[currentIndex];
+  }
+
+  if (!currentAssignee) {
+    console.warn("No se pudo determinar el socio asignado para la semana actual.");
+    return { error: 'No assignee determined' };
+  }
+
+  // 4. Enviar mensaje de alerta al canal grupal de limpieza
+  const completeUrl = `${APP_URL}/?action=complete_cleaning&weekId=${currentWeekId}`;
+  if (cleaningChatId && cleaningChatId.trim()) {
+    try {
+      const groupMsg = `⚠️ *${currentAssignee.name}* no ha marcado que la limpieza haya sido completada.\n\nEn caso de que ya la hayas realizado y se te haya olvidado registrarla en la web:\n\n🔗 *Finalizar Limpieza:*\n${completeUrl}\n\n_(Nota: Por seguridad, al abrir el enlace únicamente el socio encargado con su usuario o un administrador podrán validar y registrar la finalización)._`;
+      await sendGreenAPIMessage(cleaningChatId.trim(), groupMsg);
+      console.log(`Aviso de limpieza pendiente enviado al canal ${cleaningChatId}`);
+    } catch (e) {
+      console.error("Error enviando aviso de limpieza pendiente:", e);
+    }
+  }
+
+  // 5. Registrar envío en Firestore
+  await db.collection('cleaning_schedule').doc(currentWeekId).set({
+    pendingAlertSent: true,
+    pendingAlertSentAt: admin.firestore.FieldValue.serverTimestamp(),
+    assigneeName: currentAssignee.name,
+    assigneeId: currentAssignee.id || null
+  }, { merge: true });
+
+  return { success: true, weekId: currentWeekId, assignee: currentAssignee.name, pendingAlertSent: true };
+}
+
+/**
+ * Envía los domingos a las 20:00 el recordatorio para la semana entrante.
+ */
 async function executeSundayCleaningReminder() {
   const nextMonday = calculateNextMonday();
   const yyyy = nextMonday.getFullYear();
@@ -202,16 +306,39 @@ async function executeSundayCleaningReminder() {
   return { success: true, nextWeekId, assignee: nextAssignee.name, groupSent: true };
 }
 
-// Disparador programado: Todos los domingos a las 19:00 hora peninsular española
-exports.sendSundayCleaningReminder = onSchedule(
-  { schedule: "every sunday 19:00", timeZone: "Europe/Madrid" },
+// ==========================================
+// DISPARADORES PROGRAMADOS (DOMINGOS)
+// ==========================================
+
+// 1. Domingos a las 18:00 hora peninsular española: Aviso si la limpieza de la semana NO se ha completado
+exports.sendSundayPendingCleaningReminder = onSchedule(
+  { schedule: "every sunday 18:00", timeZone: "Europe/Madrid" },
   async () => {
-    console.log("Ejecutando aviso programado de limpieza dominical...");
+    console.log("Ejecutando comprobación de limpieza pendiente dominical (18:00)...");
+    return await executeSundayPendingCleaningCheck();
+  }
+);
+
+// 2. Domingos a las 20:00 hora peninsular española: Aviso del turno de la semana entrante
+exports.sendSundayCleaningReminder = onSchedule(
+  { schedule: "every sunday 20:00", timeZone: "Europe/Madrid" },
+  async () => {
+    console.log("Ejecutando aviso programado de limpieza dominical (20:00)...");
     return await executeSundayCleaningReminder();
   }
 );
 
-// Disparador HTTP manual para pruebas o webhook
+// Disparadores HTTP manuales para pruebas o webhooks
+exports.triggerSundayPendingCheck = onRequest(async (req, res) => {
+  try {
+    const result = await executeSundayPendingCleaningCheck();
+    res.status(200).json(result);
+  } catch (error) {
+    console.error("Error en triggerSundayPendingCheck:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 exports.triggerSundayReminder = onRequest(async (req, res) => {
   try {
     const result = await executeSundayCleaningReminder();
