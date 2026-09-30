@@ -18,10 +18,10 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { message, chatId, idMessage } = req.body;
+    const { message, chatId, idMessage, urlFile, fileName, caption } = req.body;
 
-    if (!message) {
-      return res.status(400).json({ error: 'Falta el cuerpo del mensaje' });
+    if (!message && !urlFile && !caption) {
+      return res.status(400).json({ error: 'Falta el cuerpo del mensaje o archivo' });
     }
 
     // Obtener credenciales de variables de entorno de Vercel
@@ -35,19 +35,29 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Configuración de servidor incompleta.' });
     }
 
-    // Determinar si enviamos un mensaje nuevo o editamos uno existente
-    const methodPath = idMessage ? 'editMessage' : 'sendMessage';
-    const url = `https://api.green-api.com/waInstance${idInstance}/${methodPath}/${apiTokenInstance}`;
+    let methodPath;
+    let payload;
 
-    // Payload esperado por Green API
-    const payload = {
-      chatId: targetChatId,
-      message: message
-    };
-
-    if (idMessage) {
-      payload.idMessage = idMessage;
+    if (urlFile) {
+      methodPath = 'sendFileByUrl';
+      payload = {
+        chatId: targetChatId,
+        urlFile: urlFile,
+        fileName: fileName || 'pakito.jpg',
+        caption: caption || message || ''
+      };
+    } else {
+      methodPath = idMessage ? 'editMessage' : 'sendMessage';
+      payload = {
+        chatId: targetChatId,
+        message: message
+      };
+      if (idMessage) {
+        payload.idMessage = idMessage;
+      }
     }
+
+    const url = `https://api.green-api.com/waInstance${idInstance}/${methodPath}/${apiTokenInstance}`;
 
     const response = await fetch(url, {
       method: 'POST',

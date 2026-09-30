@@ -258,6 +258,70 @@ export async function sendCleaningCombinedReminders({
   return results;
 }
 
+export const PAKITO_IMAGE_URL = "https://raw.githubusercontent.com/Vilo512/war-calendario/main/public/pakito.jpg";
+
+/**
+ * Envía un archivo/imagen con caption por WhatsApp a través de Green API
+ */
+export async function sendWhatsAppFile(fileUrl, fileName, caption, customChatId = null) {
+  const targetChatId = customChatId || GREEN_API_CHAT_ID;
+
+  // 1. Intentar Serverless Function (/api/whatsapp) si está en Vercel
+  try {
+    const res = await fetch('/api/whatsapp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chatId: targetChatId,
+        urlFile: fileUrl,
+        fileName: fileName,
+        caption: caption
+      })
+    });
+
+    const contentType = res.headers.get("content-type");
+    if (res.ok && contentType && contentType.includes("application/json")) {
+      const data = await res.json();
+      if (data.success) return data;
+    }
+  } catch (e) {
+    console.warn("Serverless /api/whatsapp no disponible para archivo, usando llamada directa client-side...");
+  }
+
+  // 2. Fallback directo client-side
+  try {
+    const url = `https://api.green-api.com/waInstance${GREEN_API_ID}/sendFileByUrl/${GREEN_API_TOKEN}`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chatId: targetChatId,
+        urlFile: fileUrl,
+        fileName: fileName,
+        caption: caption
+      })
+    });
+
+    const rawText = await response.text();
+    let data;
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      data = { error: rawText };
+    }
+
+    if (!response.ok) {
+      throw new Error(data?.message || data?.error || `HTTP ${response.status}: ${rawText}`);
+    }
+
+    return data;
+  } catch (err) {
+    console.error("Error enviando archivo por WhatsApp, intentando fallback de texto:", err);
+    // Si falla el envío de la foto, enviamos al menos el texto como fallback seguro
+    return sendWhatsAppMessage(caption, targetChatId);
+  }
+}
+
 /**
  * Genera el texto del mensaje para avisar al grupo de que la limpieza ha sido completada
  */
@@ -267,11 +331,11 @@ export function buildCleaningCompletedMessage({ assigneeName, completedByName = 
     ? `\n👤 *${completedByName}*` 
     : '';
 
-  return `✅ *Limpieza completada:* *${assigneeName || 'Socio'}*\n📅 *Semana:* ${weekRange}${details}\n\n¡Muchas gracias por mantener a punto el local de W.A.R. Lleida! 🧹`;
+  return `✅ *Limpieza completada:* *${assigneeName || 'Socio'}*\n📅 *Semana:* ${weekRange}${details}\n\n¡Pakito y la comunidad de W.A.R. Lleida te agradecen mantener el local en orden! 🧹💀`;
 }
 
 /**
- * Envía el aviso de limpieza completada al grupo de WhatsApp
+ * Envía el aviso de limpieza completada al grupo de WhatsApp junto a la foto de Pakito
  */
 export async function sendCleaningCompletedNotification({
   assigneeName,
@@ -282,7 +346,14 @@ export async function sendCleaningCompletedNotification({
   try {
     const effectiveGroupChatId = (cleaningChatId && cleaningChatId.trim()) || DEFAULT_CLEANING_CHAT_ID;
     const message = buildCleaningCompletedMessage({ assigneeName, completedByName, weekRange });
-    return await sendWhatsAppMessage(message, effectiveGroupChatId);
+    
+    // Enviar foto de Pakito con el mensaje como pie de foto (caption)
+    return await sendWhatsAppFile(
+      PAKITO_IMAGE_URL,
+      'pakito.jpg',
+      message,
+      effectiveGroupChatId
+    );
   } catch (err) {
     console.error("Error enviando WhatsApp de limpieza completada:", err);
     return null;
