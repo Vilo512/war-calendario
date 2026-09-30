@@ -76,12 +76,22 @@
   - **Regla estricta de diseño**: Uso exclusivo de SVGs integrados inline en todos los componentes y prohibición absoluta de emojis en la interfaz de usuario.
   - **Compatibilidad**: Conservación de la descripción al duplicar reservas y preservación del servicio de WhatsApp sin saturación.
 
+- **🧹 Bloque 8: Sistema de Notificaciones de Limpieza Automatizado para W.A.R. Lleida (v1.2.0)**:
+  - **Canal dual en Green API**: Separación estricta entre el canal de reservas (`Avisos`, `120363339095444763@g.us`) y el grupo dedicado de limpieza (`Recordatorios Limpieza`, `120363413772081898@g.us`), evitando saturar cuotas de corresponsales de Green API y garantizando que los avisos no se mezclen.
+  - **Avisos grupales con nombre prioritario**: La primera línea del mensaje de WhatsApp muestra directamente al socio encargado en negrita (`👤 *Socio Encargado:* *Nombre*`), garantizando visibilidad instantánea en la notificación emergente de pantalla bloqueada del móvil.
+  - **Enlace directo y protegido de finalización**: Parámetro `?action=complete_cleaning&weekId=YYYY-MM-DD` que abre el modal [`CompleteCleaningModal.jsx`](file:///d:/Antigravity%20Projects/WAR%20Calendario/src/components/CompleteCleaningModal.jsx). Valida con seguridad que únicamente el socio asignado o un Administrador puedan marcar la tarea como completada (registrando en este último caso *"Finalizado por Admin: [Nombre]"*).
+  - **Cronograma dual de domingos (Cloud Functions)**:
+    - **18:00h**: Comprobación inteligente de la semana en curso. Solo envía aviso si la limpieza NO ha sido marcada como completada (`⚠️ *Nombre* no ha marcado que la limpieza haya sido completada...`). Si ya está completada, guarda silencio.
+    - **20:00h**: Aviso preventivo del turno para la semana entrante con el nombre del nuevo socio y el enlace de finalización.
+  - **Disparadores manuales en Panel de Administración**: Botones para emitir el aviso de limpieza pendiente de la semana en curso y el aviso de la semana entrante bajo demanda.
+  - **Diseño sin emojis**: Cumplimiento estricto de la regla del proyecto con iconos SVGs integrados en todos los botones y modales.
+
 ---
 
 ## 🔒 4. Respaldo y Restauración
 
-- **Último Checkpoint de Respaldo**: `backup-post-activity-description` (30 de Septiembre de 2026)
-- **Checkpoint Anterior**: `backup-pre-activity-description`
+- **Último Checkpoint de Respaldo**: `backup-cleaning-notifications-complete` (30 de Septiembre de 2026)
+- **Checkpoints Anteriores**: `backup-post-activity-description`, `backup-pre-activity-description`
 - **Archivo Zip Físico**: `_backups/`
 - **Tag Histórico MVP**: `v1.0.0-mvp-complete`
-- **Comando de Restauración**: `git checkout backup-post-activity-description`
+- **Comando de Restauración**: `git checkout backup-cleaning-notifications-complete`
