@@ -87,8 +87,8 @@ const { onSchedule } = require("firebase-functions/v2/scheduler");
 
 const DEFAULT_SALT = 'WAR_LLEIDA_CLEANING_SALT_2026';
 const FALLBACK_SECRET = 'WAR_CLEANING_SEC_KEY_8f93b1d2e4a5c6';
-const GREEN_API_ID = process.env.GREEN_API_ID || "710722696080";
-const GREEN_API_TOKEN = process.env.GREEN_API_TOKEN || "10d56cb75a914e1fa5645eaa9ebc038b704f1e1a0c5947e9ae";
+const GREEN_API_ID = process.env.GREEN_API_ID || "710722752167";
+const GREEN_API_TOKEN = process.env.GREEN_API_TOKEN || "1df6e87131a041749acfc26418ccb66657ccd142c4094a9eb0";
 const APP_URL = "https://warcalendario.web.app";
 
 async function decryptPhone(encryptedObj) {

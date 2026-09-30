@@ -1,7 +1,7 @@
 // Service for sending WhatsApp messages via Green API directly from frontend or proxy
 
-const GREEN_API_ID = import.meta.env.VITE_GREEN_API_ID || "710722696080";
-const GREEN_API_TOKEN = import.meta.env.VITE_GREEN_API_TOKEN || "10d56cb75a914e1fa5645eaa9ebc038b704f1e1a0c5947e9ae";
+const GREEN_API_ID = import.meta.env.VITE_GREEN_API_ID || "710722752167";
+const GREEN_API_TOKEN = import.meta.env.VITE_GREEN_API_TOKEN || "1df6e87131a041749acfc26418ccb66657ccd142c4094a9eb0";
 const GREEN_API_CHAT_ID = import.meta.env.VITE_GREEN_API_CHAT_ID || "120363339095444763@g.us";
 export const DEFAULT_CLEANING_CHAT_ID = import.meta.env.VITE_GREEN_API_CLEANING_CHAT_ID || "120363413772081898@g.us";
 

@@ -25,10 +25,10 @@ export default async function handler(req, res) {
     }
 
     // Obtener credenciales de variables de entorno de Vercel
-    const idInstance = process.env.GREEN_API_ID;
-    const apiTokenInstance = process.env.GREEN_API_TOKEN;
-    // Si no pasan un chatId por el body, usamos el de entorno por defecto
-    const targetChatId = chatId || process.env.GREEN_API_CHAT_ID;
+    const idInstance = process.env.GREEN_API_ID || "710722752167";
+    const apiTokenInstance = process.env.GREEN_API_TOKEN || "1df6e87131a041749acfc26418ccb66657ccd142c4094a9eb0";
+    // Si no pasan un chatId por el body, usamos el de partidas por defecto
+    const targetChatId = chatId || process.env.GREEN_API_CHAT_ID || "120363339095444763@g.us";
 
     if (!idInstance || !apiTokenInstance || !targetChatId) {
       console.error('Faltan credenciales de Green API o Chat ID en las variables de entorno.');
