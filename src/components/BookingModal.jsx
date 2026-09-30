@@ -22,7 +22,8 @@ export default function BookingModal({
     maxAttendees: '',
     activityType: 'open',       // 'open' (Abierta) | 'closed' (Cerrada/Privada)
     targetAudience: 'publico',   // 'publico' | 'semisocios' | 'socios'
-    announceOnWhatsApp: true     // Activado por defecto para facilitar avisos
+    announceOnWhatsApp: true,    // Activado por defecto para facilitar avisos
+    description: ''
   });
   const [roomsList, setRoomsList] = useState([]);
   const [registeredUsers, setRegisteredUsers] = useState([]);
@@ -78,7 +79,8 @@ export default function BookingModal({
           maxAttendees: duplicateBookingData.maxAttendees || '',
           activityType: duplicateBookingData.activityType || 'open',
           targetAudience: duplicateBookingData.targetAudience || 'publico',
-          announceOnWhatsApp: true
+          announceOnWhatsApp: true,
+          description: duplicateBookingData.description || ''
         });
         setPreAttendees(duplicateBookingData.attendees || []);
       } else {
@@ -95,7 +97,8 @@ export default function BookingModal({
           maxAttendees: '',
           activityType: 'open',
           targetAudience: 'publico',
-          announceOnWhatsApp: true
+          announceOnWhatsApp: true,
+          description: ''
         });
         setPreAttendees([]);
       }
@@ -291,6 +294,7 @@ export default function BookingModal({
             activityType: formData.activityType || 'open',
             targetAudience: formData.targetAudience || 'publico',
             attendees: preAttendees,
+            description: formData.description ? formData.description.trim() : '',
             userId: user ? user.uid : 'anonymous',
             userEmail: user ? user.email : '',
             userName: user ? (user.displayName || user.email) : 'Anónimo',
@@ -314,6 +318,8 @@ export default function BookingModal({
             throw new Error('Esta sala ya está reservada en alguno de los dos días en ese horario.');
           }
 
+          const trimmedDesc = formData.description ? formData.description.trim() : '';
+
           transaction.set(ref1, {
             name: cleanName,
             room: selectedRoom,
@@ -329,6 +335,7 @@ export default function BookingModal({
             activityType: formData.activityType || 'open',
             targetAudience: formData.targetAudience || 'publico',
             attendees: preAttendees,
+            description: trimmedDesc,
             userId: user ? user.uid : 'anonymous',
             userEmail: user ? user.email : '',
             userName: user ? (user.displayName || user.email) : 'Anónimo',
@@ -351,6 +358,7 @@ export default function BookingModal({
             activityType: formData.activityType || 'open',
             targetAudience: formData.targetAudience || 'publico',
             attendees: preAttendees,
+            description: trimmedDesc,
             userId: user ? user.uid : 'anonymous',
             userEmail: user ? user.email : '',
             userName: user ? (user.displayName || user.email) : 'Anónimo',
@@ -578,6 +586,52 @@ export default function BookingModal({
                 placeholder="Ej. 6 (dejar vacío si no hay límite)" 
                 value={formData.maxAttendees}
                 onChange={(e) => setFormData({ ...formData, maxAttendees: e.target.value })}
+              />
+            </div>
+
+            {/* Descripción y Enlaces de la Actividad */}
+            <div className="form-group" style={{ marginBottom: '1.2rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                <label style={{ margin: 0, fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-secondary)' }}>
+                  Descripción y Enlaces (Reglas, Tutoriales...)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const template = "Info:\nTutorial:\nReglas:";
+                    setFormData(prev => ({
+                      ...prev,
+                      description: prev.description ? `${prev.description}\n\n${template}` : template
+                    }));
+                  }}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.06)',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    borderRadius: '4px',
+                    color: 'var(--text-secondary)',
+                    fontSize: '0.72rem',
+                    padding: '2px 7px',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                  title="Insertar plantilla rápida de texto"
+                >
+                  <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  <span>Insertar plantilla</span>
+                </button>
+              </div>
+              <textarea
+                className="form-input"
+                rows={3}
+                placeholder="Describe la actividad o pega enlaces de YouTube / reglas..."
+                style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', minHeight: '68px', fontSize: '0.85rem', lineHeight: '1.4' }}
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               />
             </div>
 

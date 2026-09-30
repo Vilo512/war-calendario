@@ -3,25 +3,21 @@ import { collection, onSnapshot, doc, updateDoc, query, where, getDocs } from 'f
 import { db } from '../firebase/config';
 import { isAdminRole } from '../utils/roleUtils';
 import { editWhatsAppMessage, buildWhatsAppMessageText } from '../services/whatsappService';
+import { findVideosInText, VideoEmbedPlayer, FormattedDescriptionText } from '../utils/linkUtils';
 
 export default function AttendeesModal({ isOpen, onClose, booking, user, userRole, onToggleAttendance }) {
-  if (!isOpen || !booking) return null;
-
   const [registeredUsers, setRegisteredUsers] = useState([]);
   const [selectedUserUid, setSelectedUserUid] = useState('');
   const [manualGuestName, setManualGuestName] = useState('');
   const [isEditingOrganizer, setIsEditingOrganizer] = useState(false);
   const [selectedNewOrganizerUid, setSelectedNewOrganizerUid] = useState('');
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [editedDescription, setEditedDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const isAdmin = isAdminRole(userRole);
-  const isOrganizer = user && (user.uid === booking.userId || user.email === booking.userEmail);
+  const isOrganizer = user && booking && (user.uid === booking.userId || user.email === booking.userEmail);
   const canManage = isAdmin || isOrganizer;
-
-  const attendees = booking.attendees || [];
-  const isAttending = user && attendees.some(a => a.uid === user.uid);
-  const maxCount = booking.maxAttendees || null;
-  const isFull = maxCount && attendees.length >= maxCount;
 
   // Cargar la lista de usuarios registrados cuando se abre el modal y se tienen permisos de gestión
   useEffect(() => {
@@ -33,6 +29,21 @@ export default function AttendeesModal({ isOpen, onClose, booking, user, userRol
     });
     return () => unsub();
   }, [isOpen, canManage]);
+
+  // Sincronizar descripción local cuando cambia la reserva
+  useEffect(() => {
+    if (booking) {
+      setEditedDescription(booking.description || '');
+      setIsEditingDescription(false);
+    }
+  }, [booking]);
+
+  if (!isOpen || !booking) return null;
+
+  const attendees = booking.attendees || [];
+  const isAttending = user && attendees.some(a => a.uid === user.uid);
+  const maxCount = booking.maxAttendees || null;
+  const isFull = maxCount && attendees.length >= maxCount;
 
   const formatDisplayDateDMY = (dateStr) => {
     if (!dateStr) return '';
@@ -156,6 +167,14 @@ export default function AttendeesModal({ isOpen, onClose, booking, user, userRol
     }
   };
 
+  // Guardar cambios en la descripción de la actividad (Organizador / Admin)
+  const handleSaveDescription = async () => {
+    if (!canManage) return;
+    const trimmed = editedDescription.trim();
+    await updateBookingFirestoreData({ description: trimmed });
+    setIsEditingDescription(false);
+  };
+
   return (
     <div style={{
       position: 'fixed',
@@ -190,10 +209,14 @@ export default function AttendeesModal({ isOpen, onClose, booking, user, userRol
           {isAdmin && (
             <button 
               className="btn btn-secondary" 
-              style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
+              style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
               onClick={() => setIsEditingOrganizer(!isEditingOrganizer)}
             >
-              {isEditingOrganizer ? 'Cancelar' : '✏️ Cambiar Organizador'}
+              <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+              <span>{isEditingOrganizer ? 'Cancelar' : 'Cambiar Organizador'}</span>
             </button>
           )}
         </div>
@@ -227,6 +250,134 @@ export default function AttendeesModal({ isOpen, onClose, booking, user, userRol
             </div>
           </div>
         )}
+
+        {/* Sección de Descripción, Enlaces y Tutoriales de la Actividad */}
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.03)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          borderRadius: '8px',
+          padding: '0.8rem 1rem',
+          marginBottom: '1.2rem'
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: (isEditingDescription || booking.description) ? '0.6rem' : 0
+          }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+              </svg>
+              <span>Descripción y Recursos</span>
+            </span>
+
+            {canManage && !isEditingDescription && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ fontSize: '0.72rem', padding: '0.2rem 0.5rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                onClick={() => {
+                  setIsEditingDescription(true);
+                  setEditedDescription(booking.description || '');
+                }}
+                title="Editar la descripción o recursos de esta actividad"
+              >
+                <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+                <span>{booking.description ? 'Editar' : '+ Añadir'}</span>
+              </button>
+            )}
+          </div>
+
+          {isEditingDescription ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const template = "Info:\nTutorial:\nReglas:";
+                    setEditedDescription(prev => prev ? `${prev}\n\n${template}` : template);
+                  }}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.06)',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    borderRadius: '4px',
+                    color: 'var(--text-secondary)',
+                    fontSize: '0.72rem',
+                    padding: '2px 7px',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                  title="Insertar plantilla rápida de texto"
+                >
+                  <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  <span>Insertar plantilla</span>
+                </button>
+              </div>
+
+              <textarea
+                className="form-input"
+                rows={4}
+                style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', fontSize: '0.85rem', lineHeight: '1.4' }}
+                placeholder="Describe la actividad o pega enlaces de YouTube / reglas..."
+                value={editedDescription}
+                onChange={(e) => setEditedDescription(e.target.value)}
+              />
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}
+                  onClick={() => {
+                    setIsEditingDescription(false);
+                    setEditedDescription(booking.description || '');
+                  }}
+                  disabled={submitting}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ fontSize: '0.75rem', padding: '0.3rem 0.8rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                  onClick={handleSaveDescription}
+                  disabled={submitting}
+                >
+                  <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                  <span>{submitting ? 'Guardando...' : 'Guardar'}</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            booking.description ? (
+              <div>
+                <FormattedDescriptionText text={booking.description} />
+                {findVideosInText(booking.description).map((vid, idx) => (
+                  <VideoEmbedPlayer key={vid.id || idx} video={vid} initialOpen={true} />
+                ))}
+              </div>
+            ) : (
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                Esta actividad no incluye descripción ni enlaces.
+              </div>
+            )
+          )}
+        </div>
 
         {/* Barra de progreso de aforo */}
         <div style={{ marginBottom: '1.2rem' }}>

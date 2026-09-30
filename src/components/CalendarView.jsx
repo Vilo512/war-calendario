@@ -481,13 +481,46 @@ export default function CalendarView({ user, userRole, onOpenBooking, onDuplicat
                           <div key={booking.id} className="booking-item" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.5rem', padding: '0.8rem', background: 'rgba(255,255,255,0.03)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                               <div>
-                                <div style={{ fontWeight: 'bold', fontSize: '0.95rem' }}>{booking.name}</div>
+                                <div 
+                                  style={{ fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer', display: 'inline-block' }}
+                                  onClick={() => setSelectedBookingForAttendees(booking)}
+                                  title="Ver detalles de la actividad"
+                                >
+                                  {booking.name}
+                                </div>
                                 <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                                   Por: {booking.userName || booking.userEmail || 'Socio'}
                                 </div>
 
-                                {/* Badges del Bloque 4 (Cerrada / Público Objetivo) */}
+                                {/* Badges del Bloque 4 (Cerrada / Público Objetivo) y badge de Recursos */}
                                 <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', marginTop: '0.3rem' }}>
+                                  {booking.description && (
+                                    <span 
+                                      onClick={() => setSelectedBookingForAttendees(booking)}
+                                      style={{ 
+                                        fontSize: '0.65rem', 
+                                        background: 'rgba(255, 255, 255, 0.08)', 
+                                        color: '#e2e8f0', 
+                                        border: '1px solid rgba(255, 255, 255, 0.2)', 
+                                        padding: '1px 5px', 
+                                        borderRadius: '4px', 
+                                        fontWeight: '500', 
+                                        display: 'inline-flex', 
+                                        alignItems: 'center', 
+                                        gap: '3px',
+                                        cursor: 'pointer'
+                                      }}
+                                      title="Contiene descripción o recursos"
+                                    >
+                                      <svg viewBox="0 0 24 24" width="10" height="10" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                        <polyline points="14 2 14 8 20 8"></polyline>
+                                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                                      </svg>
+                                      <span>Info / Recursos</span>
+                                    </span>
+                                  )}
                                   {booking.activityType === 'closed' && (
                                     <span style={{ fontSize: '0.65rem', background: 'rgba(245, 158, 11, 0.2)', color: '#f59e0b', border: '1px solid #f59e0b', padding: '1px 5px', borderRadius: '4px', fontWeight: 'bold' }}>
                                       🔒 CERRADA
@@ -619,7 +652,22 @@ export default function CalendarView({ user, userRole, onOpenBooking, onDuplicat
                             <button onClick={() => handleDelete(booking)} style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '0', fontSize: '1rem', lineHeight: '1' }} title="Borrar Reserva">×</button>
                           )}
                         </div>
-                        <div className="mini-name">{booking.name}</div>
+                        <div 
+                          className="mini-name"
+                          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}
+                          onClick={() => setSelectedBookingForAttendees(booking)}
+                          title="Ver detalles de la actividad"
+                        >
+                          <span>{booking.name}</span>
+                          {booking.description && (
+                            <svg viewBox="0 0 24 24" width="11" height="11" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--accent-primary)', flexShrink: 0 }}>
+                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                              <polyline points="14 2 14 8 20 8"></polyline>
+                              <line x1="16" y1="13" x2="8" y2="13"></line>
+                              <line x1="16" y1="17" x2="8" y2="17"></line>
+                            </svg>
+                          )}
+                        </div>
                         <div className="mini-room" style={{ color: 'var(--accent-primary)', fontWeight: 'bold' }}>{booking.room}</div>
                         {user && (
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.4rem', paddingTop: '0.3rem', borderTop: '1px solid rgba(255,255,255,0.08)', fontSize: '0.75rem' }}>
