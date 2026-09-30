@@ -137,9 +137,16 @@ export default function CleaningCard({ user, userRole }) {
   // Marcar como completado
   const handleToggleComplete = async (status) => {
     try {
+      const isCompletedByAdmin = isAdmin && !isMyTurn;
+      const completedByName = status
+        ? (isCompletedByAdmin ? `Finalizado por Admin: ${user?.displayName || user?.email || 'Admin'}` : (user?.displayName || user?.email || 'Socio'))
+        : null;
+      const completedRole = isCompletedByAdmin ? 'admin' : 'assignee';
+
       await setDoc(doc(db, 'cleaning_schedule', weekId), {
         completed: status,
-        completedBy: status ? (user?.displayName || user?.email || 'Anónimo') : null,
+        completedBy: completedByName,
+        completedByRole: status ? completedRole : null,
         completedAt: status ? new Date() : null,
         weekRange: weekRange
       }, { merge: true });
@@ -152,7 +159,7 @@ export default function CleaningCard({ user, userRole }) {
           memberName: assignee.name || 'Socio',
           isManual: Boolean(assignee.isManual || assignee.type === 'manual'),
           completedByUid: user?.uid || 'system',
-          completedByName: user?.displayName || user?.email || 'Socio'
+          completedByName: completedByName
         });
       } else if (!status) {
         await removeCleaningHistoryForWeek(weekId);
@@ -284,7 +291,12 @@ export default function CleaningCard({ user, userRole }) {
       {/* Sugerencia Inteligente */}
       <div style={{ marginTop: '0.8rem', background: 'rgba(52, 211, 153, 0.1)', border: '1px solid rgba(52, 211, 153, 0.3)', padding: '0.6rem 0.8rem', borderRadius: '6px', fontSize: '0.8rem' }}>
         <div style={{ color: '#34d399', fontWeight: 'bold', marginBottom: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          <span>💡</span> Sugerencia Inteligente:
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1.3.5 2.6 1.5 3.5.8.8 1.3 1.5 1.5 2.5"></path>
+            <path d="M9 18h6"></path>
+            <path d="M10 22h4"></path>
+          </svg>
+          <span>Sugerencia Inteligente:</span>
         </div>
         <div style={{ color: 'var(--text-secondary)' }}>
           {smartSuggestion}
@@ -439,7 +451,15 @@ export default function CleaningCard({ user, userRole }) {
             }}
             onClick={() => setShowScheduleDropdown(!showScheduleDropdown)}
           >
-            <span>📅 {showScheduleDropdown ? 'Ocultar Próximos Turnos' : '¿Cuándo me toca? (Ver Turnos Futuros)'}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+              <span>{showScheduleDropdown ? 'Ocultar Próximos Turnos' : '¿Cuándo me toca? (Ver Turnos Futuros)'}</span>
+            </span>
             <span>{showScheduleDropdown ? '▲' : '▼'}</span>
           </button>
 
@@ -483,13 +503,18 @@ export default function CleaningCard({ user, userRole }) {
         </div>
       )}
 
-      {/* Botón de Histórico */}
       <button 
         className="btn btn-secondary" 
-        style={{ width: '100%', marginTop: '0.8rem', padding: '0.45rem', fontSize: '0.8rem', justifyContent: 'center' }}
+        style={{ width: '100%', marginTop: '0.8rem', padding: '0.45rem', fontSize: '0.8rem', justifyContent: 'center', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
         onClick={() => setIsHistoryModalOpen(true)}
       >
-        📜 Ver Histórico de Limpiezas
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="16" y1="13" x2="8" y2="13"></line>
+          <line x1="16" y1="17" x2="8" y2="17"></line>
+        </svg>
+        <span>Ver Histórico de Limpiezas</span>
       </button>
 
       {/* Modales */}

@@ -24,13 +24,31 @@ import {
 } from '../services/announcementService';
 import CleaningHistoryModal from './CleaningHistoryModal';
 import { recordCleaningHistory } from '../services/cleaningHistoryService';
-import { sendWhatsAppMessage } from '../services/whatsappService';
-import { getWeekId, formatWeekRange } from '../utils/cleaningUtils';
+import { 
+  sendWhatsAppMessage, 
+  sendCleaningCombinedReminders 
+} from '../services/whatsappService';
+import { 
+  getWeekId, 
+  formatWeekRange, 
+  getNextWeekId, 
+  getNextWeekRange, 
+  getNextWeekMonday, 
+  calculateAssigneeForDate, 
+  calculateCurrentAssignee 
+} from '../utils/cleaningUtils';
+import { saveUserPhone, getAllUserPhones, getUserPhone } from '../services/phoneBookService';
 
 export default function AdminPanel({ isOpen, onClose, user }) {
   const [users, setUsers] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [cleaningMembers, setCleaningMembers] = useState([]);
+  const [cleaningConfig, setCleaningConfig] = useState(null);
+  const [cleaningChatId, setCleaningChatId] = useState('');
+  const [phonesMap, setPhonesMap] = useState({});
+  const [editingPhones, setEditingPhones] = useState({});
+  const [savingPhoneId, setSavingPhoneId] = useState(null);
+  const [sendingReminder, setSendingReminder] = useState(false);
   const [weeksMap, setWeeksMap] = useState({});
   const [incidents, setIncidents] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
@@ -56,7 +74,8 @@ export default function AdminPanel({ isOpen, onClose, user }) {
         const currentWeekRange = formatWeekRange();
         await setDoc(doc(db, 'cleaning_schedule', currentWeekId), {
           completed: true,
-          completedBy: `${user?.displayName || 'Admin'} (Validación Admin)`,
+          completedBy: `Finalizado por Admin: ${user?.displayName || user?.email || 'Admin'}`,
+          completedByRole: 'admin',
           completedAt: new Date(),
           weekRange: currentWeekRange
         }, { merge: true });
@@ -68,7 +87,7 @@ export default function AdminPanel({ isOpen, onClose, user }) {
           memberName: member.name,
           isManual: Boolean(member.isManual),
           completedByUid: user?.uid || 'admin',
-          completedByName: `${user?.displayName || user?.email || 'Admin'} (Admin)`
+          completedByName: `Finalizado por Admin: ${user?.displayName || user?.email || 'Admin'}`
         });
 
         setMsg(`✓ Limpieza del socio "${member.name}" guardada con éxito en el histórico.`);
@@ -124,7 +143,7 @@ export default function AdminPanel({ isOpen, onClose, user }) {
   };
 
   const handlePurgeAllBookings = async () => {
-    if (window.confirm('🚨 ¿Estás SEGURO de que deseas vaciar ABSOLUTAMENTE TODAS las reservas del calendario?')) {
+    if (window.confirm('¿Estás SEGURO de que deseas vaciar ABSOLUTAMENTE TODAS las reservas del calendario?')) {
       try {
         const snapshot = await getDocs(collection(db, 'bookings'));
         let count = 0;
@@ -186,17 +205,31 @@ export default function AdminPanel({ isOpen, onClose, user }) {
     return () => unsub();
   }, [isOpen]);
 
-  // Escuchar cuadrante de limpieza
+  // Escuchar cuadrante de limpieza y configuración
   useEffect(() => {
     if (!isOpen) return;
     const unsub = onSnapshot(doc(db, 'cleaning_schedule', 'config'), (docSnap) => {
       if (docSnap.exists()) {
-        setCleaningMembers(docSnap.data().members || []);
+        const data = docSnap.data();
+        setCleaningMembers(data.members || []);
+        setCleaningConfig(data);
+        if (data.cleaningChatId) {
+          setCleaningChatId(data.cleaningChatId);
+        }
       } else {
         setCleaningMembers([]);
+        setCleaningConfig({ members: [] });
       }
     });
     return () => unsub();
+  }, [isOpen]);
+
+  // Cargar teléfonos cifrados de socios (exclusivo Admin)
+  useEffect(() => {
+    if (!isOpen) return;
+    getAllUserPhones().then(map => {
+      setPhonesMap(map || {});
+    }).catch(err => console.error("Error cargando teléfonos cifrados:", err));
   }, [isOpen]);
 
   // Escuchar permutas/excepciones de semanas
@@ -339,6 +372,173 @@ export default function AdminPanel({ isOpen, onClose, user }) {
     };
     saveCleaningMembers([...cleaningMembers, newItem]);
     setManualMemberName('');
+  };
+
+  // Guardar teléfono cifrado de usuario (exclusivo Admin)
+  const handleSavePhone = async (userId) => {
+    const rawVal = editingPhones[userId] !== undefined ? editingPhones[userId] : (phonesMap[userId] || '');
+    setSavingPhoneId(userId);
+    try {
+      const normalized = await saveUserPhone(userId, rawVal, user?.uid);
+      setPhonesMap(prev => {
+        const next = { ...prev };
+        if (normalized) next[userId] = normalized;
+        else delete next[userId];
+        return next;
+      });
+      setMsg(normalized ? '✓ Teléfono guardado y cifrado con éxito (AES-256).' : '✓ Teléfono eliminado del directorio.');
+      setTimeout(() => setMsg(''), 3500);
+    } catch (err) {
+      console.error("Error al guardar teléfono cifrado:", err);
+      setMsg('Error al guardar teléfono: ' + err.message);
+    } finally {
+      setSavingPhoneId(null);
+    }
+  };
+
+  // Guardar ID del canal de WhatsApp para limpieza
+  const handleSaveCleaningChatId = async () => {
+    try {
+      await setDoc(doc(db, 'cleaning_schedule', 'config'), {
+        cleaningChatId: cleaningChatId.trim()
+      }, { merge: true });
+      setMsg('✓ ID de canal de WhatsApp guardado con éxito.');
+      setTimeout(() => setMsg(''), 3000);
+    } catch (err) {
+      console.error("Error guardando canal de WhatsApp:", err);
+      setMsg('Error guardando canal: ' + err.message);
+    }
+  };
+
+  // Enviar aviso dominical anticipado para la próxima semana (combinado grupal + privado)
+  const handleSendSundayReminder = async () => {
+    if (sendingReminder) return;
+    setSendingReminder(true);
+    try {
+      const nextWId = getNextWeekId();
+      const nextWRange = getNextWeekRange();
+      const nextMonday = getNextWeekMonday();
+
+      let nextAssignee = null;
+      if (weeksMap[nextWId] && weeksMap[nextWId].assigneeName) {
+        nextAssignee = {
+          id: weeksMap[nextWId].assigneeId,
+          name: weeksMap[nextWId].assigneeName,
+          isManual: weeksMap[nextWId].isManual || false
+        };
+      } else if (cleaningMembers && cleaningMembers.length > 0) {
+        const startDate = cleaningConfig?.startDate?.toDate ? cleaningConfig.startDate.toDate() : (cleaningConfig?.startDate ? new Date(cleaningConfig.startDate) : new Date());
+        const result = calculateAssigneeForDate(cleaningMembers, startDate, nextMonday);
+        if (result) nextAssignee = result.assignee;
+      }
+
+      if (!nextAssignee) {
+        alert('No se pudo determinar el socio asignado para la próxima semana. Asegúrate de tener socios en el cuadrante.');
+        setSendingReminder(false);
+        return;
+      }
+
+      let phone = null;
+      if (nextAssignee.id && !nextAssignee.isManual) {
+        phone = phonesMap[nextAssignee.id] || (await getUserPhone(nextAssignee.id));
+      }
+
+      const res = await sendCleaningCombinedReminders({
+        weekId: nextWId,
+        weekRange: nextWRange,
+        assignee: nextAssignee,
+        phone,
+        cleaningChatId: cleaningChatId || null
+      });
+
+      // Guardar registro en Firestore
+      await setDoc(doc(db, 'cleaning_schedule', nextWId), {
+        announcedOnWhatsApp: true,
+        announcedAt: new Date(),
+        assigneeName: nextAssignee.name,
+        assigneeId: nextAssignee.id || null,
+        weekRange: nextWRange
+      }, { merge: true });
+
+      let feedback = `✓ Aviso del Domingo enviado para ${nextAssignee.name} (${nextWRange}).`;
+      if (res.groupSent && res.directSent) {
+        feedback += ' [Canal WhatsApp OK | Privado OK]';
+      } else if (res.groupSent) {
+        feedback += phone ? ' [Canal WhatsApp OK | Privado falló]' : ' [Canal WhatsApp OK | Socio sin móvil registrado]';
+      } else if (res.directSent) {
+        feedback += ' [WhatsApp Privado OK | Canal grupal no configurado]';
+      } else if (res.errors.length > 0) {
+        feedback += ` (Errores: ${res.errors.join('; ')})`;
+      }
+
+      setMsg(feedback);
+      setTimeout(() => setMsg(''), 6000);
+    } catch (err) {
+      console.error("Error al enviar aviso de domingo:", err);
+      setMsg('Error enviando aviso: ' + err.message);
+    } finally {
+      setSendingReminder(false);
+    }
+  };
+
+  // Enviar recordatorio privado al socio de la semana en curso
+  const handleSendCurrentWeekReminder = async () => {
+    if (sendingReminder) return;
+    setSendingReminder(true);
+    try {
+      const curWId = getWeekId();
+      const curWRange = formatWeekRange();
+
+      let curAssignee = null;
+      if (weeksMap[curWId] && weeksMap[curWId].assigneeName) {
+        curAssignee = {
+          id: weeksMap[curWId].assigneeId,
+          name: weeksMap[curWId].assigneeName,
+          isManual: weeksMap[curWId].isManual || false
+        };
+      } else if (cleaningMembers && cleaningMembers.length > 0) {
+        const startDate = cleaningConfig?.startDate?.toDate ? cleaningConfig.startDate.toDate() : (cleaningConfig?.startDate ? new Date(cleaningConfig.startDate) : new Date());
+        const result = calculateCurrentAssignee(cleaningMembers, startDate);
+        if (result) curAssignee = result.assignee;
+      }
+
+      if (!curAssignee) {
+        alert('No se pudo determinar el socio asignado de esta semana.');
+        setSendingReminder(false);
+        return;
+      }
+
+      let phone = null;
+      if (curAssignee.id && !curAssignee.isManual) {
+        phone = phonesMap[curAssignee.id] || (await getUserPhone(curAssignee.id));
+      }
+
+      if (!phone) {
+        alert(`El socio asignado para esta semana (${curAssignee.name}) no tiene teléfono registrado en la pestaña Usuarios.`);
+        setSendingReminder(false);
+        return;
+      }
+
+      const res = await sendCleaningCombinedReminders({
+        weekId: curWId,
+        weekRange: curWRange,
+        assignee: curAssignee,
+        phone,
+        cleaningChatId: null
+      });
+
+      if (res.directSent) {
+        setMsg(`✓ Recordatorio privado de WhatsApp enviado a ${curAssignee.name}.`);
+      } else {
+        setMsg(`No se pudo enviar WhatsApp privado a ${curAssignee.name}: ${res.errors.join('; ')}`);
+      }
+      setTimeout(() => setMsg(''), 5000);
+    } catch (err) {
+      console.error("Error enviando recordatorio de semana actual:", err);
+      setMsg('Error enviando recordatorio: ' + err.message);
+    } finally {
+      setSendingReminder(false);
+    }
   };
 
   // Mover elemento arriba/abajo
@@ -563,6 +763,35 @@ export default function AdminPanel({ isOpen, onClose, user }) {
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{u.email}</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                    {/* Teléfono Cifrado exclusivo Admin */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: 'rgba(255,255,255,0.03)', padding: '3px 8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                      </svg>
+                      <input 
+                        type="tel"
+                        placeholder="Móvil WhatsApp..."
+                        value={editingPhones[u.id] !== undefined ? editingPhones[u.id] : (phonesMap[u.id] || '')}
+                        onChange={(e) => setEditingPhones(prev => ({ ...prev, [u.id]: e.target.value }))}
+                        className="form-input"
+                        style={{ padding: '0.2rem 0.4rem', width: '135px', fontSize: '0.8rem', background: 'transparent', border: 'none', color: '#ffffff' }}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                        title="Guardar teléfono (Cifrado AES-256)"
+                        onClick={() => handleSavePhone(u.id)}
+                        disabled={savingPhoneId === u.id}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg>
+                        <span>{savingPhoneId === u.id ? '...' : (phonesMap[u.id] ? 'Guardar' : 'Añadir')}</span>
+                      </button>
+                    </div>
+
                     <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Estatus:</label>
                     <select 
                       className="form-input" 
@@ -611,11 +840,89 @@ export default function AdminPanel({ isOpen, onClose, user }) {
               <h3 style={{ fontSize: '1.1rem', margin: 0 }}>Configuración del Cuadrante Rotativo</h3>
               <button 
                 className="btn btn-secondary" 
-                style={{ fontSize: '0.8rem', padding: '0.35rem 0.8rem' }}
+                style={{ fontSize: '0.8rem', padding: '0.35rem 0.8rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                 onClick={() => setIsHistoryModalOpen(true)}
               >
-                📜 Consultar Histórico de Limpiezas
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                </svg>
+                <span>Consultar Histórico de Limpiezas</span>
               </button>
+            </div>
+
+            {/* Panel de Avisos de WhatsApp (W.A.R. Lleida) */}
+            <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '8px', padding: '1rem', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.8rem' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+                </svg>
+                <h4 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                  Avisos y Recordatorios por WhatsApp (W.A.R. Lleida)
+                </h4>
+              </div>
+
+              {/* Configuración del Canal Grupal de WhatsApp */}
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '1rem' }}>
+                <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                  ID Canal/Grupo WhatsApp Limpieza:
+                </label>
+                <input 
+                  type="text"
+                  placeholder="Ej: 120363XXXXXXXXXX@g.us (dejar vacío si aún no está creado)"
+                  value={cleaningChatId}
+                  onChange={(e) => setCleaningChatId(e.target.value)}
+                  className="form-input"
+                  style={{ flex: 1, minWidth: '220px', fontSize: '0.8rem', padding: '0.35rem 0.6rem' }}
+                />
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  onClick={handleSaveCleaningChatId}
+                  style={{ fontSize: '0.8rem', padding: '0.35rem 0.8rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                  </svg>
+                  <span>Guardar ID</span>
+                </button>
+              </div>
+
+              {/* Botones de Envío Manual */}
+              <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+                <button 
+                  type="button"
+                  className="btn"
+                  onClick={handleSendSundayReminder}
+                  disabled={sendingReminder}
+                  style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  title="Envía el anuncio anticipado del domingo para la próxima semana (Canal grupal + WhatsApp privado al socio con link de finalización)"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                  </svg>
+                  <span>{sendingReminder ? 'Enviando aviso...' : 'Enviar Aviso del Domingo (Semana Entrante)'}</span>
+                </button>
+
+                <button 
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleSendCurrentWeekReminder}
+                  disabled={sendingReminder}
+                  style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  title="Envía un recordatorio privado al socio asignado de la semana actual con el enlace directo para finalizar la limpieza"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                  </svg>
+                  <span>Enviar Recordatorio Privado (Semana Actual)</span>
+                </button>
+              </div>
             </div>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
@@ -890,7 +1197,12 @@ export default function AdminPanel({ isOpen, onClose, user }) {
                       checked={ancWhatsApp}
                       onChange={(e) => setAncWhatsApp(e.target.checked)}
                     />
-                    <span>📲 Enviar notificación al grupo de Avisos de WhatsApp</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+                      </svg>
+                      <span>Enviar notificación al grupo de Avisos de WhatsApp</span>
+                    </span>
                   </label>
                 </div>
 
@@ -988,7 +1300,11 @@ export default function AdminPanel({ isOpen, onClose, user }) {
             {/* Sección Mantenimiento de Reservas */}
             <div style={{ marginTop: '2.5rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1.5rem' }}>
               <h3 style={{ fontSize: '1.1rem', marginBottom: '0.6rem', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                🗑️ Mantenimiento y Purga de Reservas
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+                <span>Mantenimiento y Purga de Reservas</span>
               </h3>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
                 Borra reservas masivamente por mes cuando realices pruebas o cambies la configuración de salas:

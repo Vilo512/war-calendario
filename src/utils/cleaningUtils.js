@@ -70,3 +70,35 @@ export function calculateCurrentAssignee(membersList = [], startDate = new Date(
     index: currentIndex
   };
 }
+
+// Obtener el Lunes de la próxima semana
+export function getNextWeekMonday(d = new Date()) {
+  const currentMonday = getMonday(d);
+  const nextMonday = new Date(currentMonday);
+  nextMonday.setDate(currentMonday.getDate() + 7);
+  return nextMonday;
+}
+
+// Obtener el identificador de la próxima semana (ej. "2026-10-05")
+export function getNextWeekId(d = new Date()) {
+  return getWeekId(getNextWeekMonday(d));
+}
+
+// Obtener el rango formateado de la próxima semana (ej. "Lun 05/10 - Dom 11/10")
+export function getNextWeekRange(d = new Date()) {
+  return formatWeekRange(getNextWeekMonday(d));
+}
+
+// Determinar el socio asignado para una fecha/semana específica
+export function calculateAssigneeForDate(membersList = [], startDate = new Date(), targetDate = new Date()) {
+  if (!membersList || membersList.length === 0) return null;
+
+  const weeksPassed = getWeeksDiff(startDate, targetDate);
+  const currentIndex = ((weeksPassed % membersList.length) + membersList.length) % membersList.length;
+
+  return {
+    assignee: membersList[currentIndex],
+    index: currentIndex
+  };
+}
+

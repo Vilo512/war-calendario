@@ -9,6 +9,7 @@ import Login from './components/Login';
 import AdminPanel from './components/AdminPanel';
 import AnnouncementBanner from './components/AnnouncementBanner';
 import AnalyticsPage from './pages/AnalyticsPage';
+import CompleteCleaningModal from './components/CompleteCleaningModal';
 import { getRoleLabel, isAdminRole, ROLES, subscribeRoleLabels, DEFAULT_ROLE_LABELS } from './utils/roleUtils';
 import { subscribeOpenIncidents } from './services/cleaningIncidentService';
 import './index.css';
@@ -19,6 +20,7 @@ export default function App() {
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [completeCleaningWeekId, setCompleteCleaningWeekId] = useState(null);
   const [openIncidentsCount, setOpenIncidentsCount] = useState(0);
   const [bookingInitialData, setBookingInitialData] = useState({ date: '', room: '' });
   const [duplicateBookingData, setDuplicateBookingData] = useState(null);
@@ -33,6 +35,17 @@ export default function App() {
   useEffect(() => {
     const handlePopState = () => setCurrentPath(window.location.pathname);
     window.addEventListener('popstate', handlePopState);
+    
+    // Comprobar parámetros de acción en URL (ej. ?action=complete_cleaning&weekId=...)
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      if (searchParams.get('action') === 'complete_cleaning' && searchParams.get('weekId')) {
+        setCompleteCleaningWeekId(searchParams.get('weekId'));
+      }
+    } catch (e) {
+      console.warn("Error leyendo query params de limpieza:", e);
+    }
+
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
@@ -206,9 +219,14 @@ export default function App() {
                 <button 
                   className="btn btn-secondary" 
                   onClick={() => navigateTo('/analytics')} 
-                  style={{ borderColor: 'var(--accent-secondary)' }}
+                  style={{ borderColor: 'var(--accent-secondary)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                 >
-                  📊 Analíticas
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="20" x2="18" y2="10"></line>
+                    <line x1="12" y1="20" x2="12" y2="4"></line>
+                    <line x1="6" y1="20" x2="6" y2="14"></line>
+                  </svg>
+                  <span>Analíticas</span>
                 </button>
                 <button 
                   className="btn btn-secondary" 
@@ -284,6 +302,16 @@ export default function App() {
       />
       
       {isAdminOpen && <AdminPanel isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} user={user} />}
+      
+      {completeCleaningWeekId && (
+        <CompleteCleaningModal 
+          isOpen={Boolean(completeCleaningWeekId)} 
+          onClose={() => setCompleteCleaningWeekId(null)} 
+          weekId={completeCleaningWeekId} 
+          user={user} 
+          userRole={userRole} 
+        />
+      )}
       
       <footer style={{ textAlign: 'center', padding: '2rem 1rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8rem', opacity: 0.7 }}>
         WAR Calendario - v1.0.0

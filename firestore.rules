@@ -19,6 +19,11 @@ service cloud.firestore {
       allow update, delete: if isAdmin() || (request.auth != null && request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']));
     }
 
+    // Directorio Privado y Cifrado de Teléfonos (Exclusivo Administradores)
+    match /admin_phone_book/{userId} {
+      allow read, write: if isAdmin();
+    }
+
     // Colección de Reservas
     match /bookings/{bookingId} {
       allow read: if request.auth != null;

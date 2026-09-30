@@ -48,7 +48,13 @@ export default function CleaningHistoryModal({ isOpen, onClose }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.8rem' }}>
           <div>
             <h2 style={{ fontSize: '1.25rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              📜 Histórico de Limpiezas
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+              </svg>
+              <span>Histórico de Limpiezas</span>
             </h2>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
               Registro cronológico de turnos completados por los socios
@@ -67,7 +73,7 @@ export default function CleaningHistoryModal({ isOpen, onClose }) {
           <input 
             type="text"
             className="form-input"
-            placeholder="🔍 Buscar por socio o semana..."
+            placeholder="Buscar por socio o semana..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{ width: '100%', fontSize: '0.85rem', padding: '0.5rem 0.8rem' }}
@@ -82,7 +88,14 @@ export default function CleaningHistoryModal({ isOpen, onClose }) {
             </p>
           ) : filteredHistory.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--text-secondary)' }}>
-              <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🧹</div>
+              <div style={{ marginBottom: '0.5rem' }}>
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m19 11-8-8-8.6 8.6a2 2 0 0 0 0 2.8l5.2 5.2c.8.8 2 .8 2.8 0L19 11Z"/>
+                  <path d="m5 2 5 5"/>
+                  <path d="M2 13h10"/>
+                  <path d="M22 20a2 2 0 1 1-4 0c0-1.6 1.7-2.4 2-4 .3 1.6 2 2.4 2 4Z"/>
+                </svg>
+              </div>
               <p style={{ fontSize: '0.9rem', margin: 0 }}>
                 {searchTerm ? 'No se encontraron limpiezas para esa búsqueda.' : 'Aún no hay limpiezas registradas en el histórico.'}
               </p>
@@ -117,8 +130,14 @@ export default function CleaningHistoryModal({ isOpen, onClose }) {
                       </span>
                     )}
                   </div>
-                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                    🗓️ Semana: {item.weekRange}
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                      <line x1="16" y1="2" x2="16" y2="6"></line>
+                      <line x1="8" y1="2" x2="8" y2="6"></line>
+                      <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    <span>Semana: {item.weekRange}</span>
                   </div>
                   <div style={{ fontSize: '0.73rem', color: '#a1a1aa', marginTop: '2px' }}>
                     Validado por: <span style={{ color: '#e4e4e7' }}>{item.completedByName}</span>
