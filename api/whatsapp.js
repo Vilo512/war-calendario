@@ -18,22 +18,36 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { message, chatId, idMessage, urlFile, fileName, caption } = req.body;
+    let body = req.body;
+    if (typeof body === 'string') {
+      try {
+        body = JSON.parse(body);
+      } catch (e) {
+        // Ignorar si no es JSON válido
+      }
+    }
+
+    const { message, chatId, idMessage, urlFile, fileName, caption } = body || {};
 
     if (!message && !urlFile && !caption) {
       return res.status(400).json({ error: 'Falta el cuerpo del mensaje o archivo' });
     }
 
-    // Obtener credenciales de variables de entorno de Vercel
-    const idInstance = process.env.GREEN_API_ID || "710722752167";
-    const apiTokenInstance = process.env.GREEN_API_TOKEN || "1df6e87131a041749acfc26418ccb66657ccd142c4094a9eb0";
+    // Credenciales activas y verificadas de Green API
+    const ACTIVE_ID = "710722752167";
+    const ACTIVE_TOKEN = "1df6e87131a041749acfc26418ccb66657ccd142c4094a9eb0";
+
+    // Si la variable en Vercel tiene el token viejo o corrupto de la instancia eliminada, forzar las credenciales válidas
+    let idInstance = process.env.GREEN_API_ID || ACTIVE_ID;
+    let apiTokenInstance = process.env.GREEN_API_TOKEN || ACTIVE_TOKEN;
+
+    if (idInstance === ACTIVE_ID || !apiTokenInstance || apiTokenInstance.startsWith("10d56cb7")) {
+      idInstance = ACTIVE_ID;
+      apiTokenInstance = ACTIVE_TOKEN;
+    }
+
     // Si no pasan un chatId por el body, usamos el de partidas por defecto
     const targetChatId = chatId || process.env.GREEN_API_CHAT_ID || "120363339095444763@g.us";
-
-    if (!idInstance || !apiTokenInstance || !targetChatId) {
-      console.error('Faltan credenciales de Green API o Chat ID en las variables de entorno.');
-      return res.status(500).json({ error: 'Configuración de servidor incompleta.' });
-    }
 
     let methodPath;
     let payload;

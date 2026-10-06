@@ -1,4 +1,14 @@
 {
+  "crons": [
+    {
+      "path": "/api/cron-cleaning?type=pending",
+      "schedule": "0 16 * * 0"
+    },
+    {
+      "path": "/api/cron-cleaning?type=reminder",
+      "schedule": "0 18 * * 0"
+    }
+  ],
   "rewrites": [
     {
       "source": "/(.*)",

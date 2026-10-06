@@ -1,0 +1,38 @@
+name: Sunday Cleaning Reminders
+
+on:
+  schedule:
+    # 18:00 hora peninsular española (16:00 UTC en verano / CEST)
+    - cron: '0 16 * * 0'
+    # 20:00 hora peninsular española (18:00 UTC en verano / CEST)
+    - cron: '0 18 * * 0'
+  workflow_dispatch:
+    inputs:
+      type:
+        description: 'Tipo de comprobación (pending, reminder, o auto)'
+        required: true
+        default: 'auto'
+        type: choice
+        options:
+          - auto
+          - pending
+          - reminder
+
+jobs:
+  run-reminder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Sunday Cleaning Cron
+        run: |
+          CHECK_TYPE="${{ github.event.inputs.type || 'auto' }}"
+          echo "Ejecutando comprobación dominical de limpieza (tipo: $CHECK_TYPE)..."
+          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X GET "https://warlendario.vercel.app/api/cron-cleaning?type=$CHECK_TYPE")
+          echo "Respuesta del servidor:"
+          echo "$RESPONSE"
+          STATUS=$(echo "$RESPONSE" | grep "HTTP_STATUS:" | cut -d':' -f2)
+          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 300 ]; then
+            echo "Aviso procesado exitosamente."
+          else
+            echo "Error procesando el aviso (HTTP $STATUS)."
+            exit 1
+          fi

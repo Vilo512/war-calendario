@@ -16,14 +16,16 @@ export async function sendWhatsAppMessage(message, customChatId = null) {
       body: JSON.stringify({ message, chatId: targetChatId })
     });
 
-    // Si devuelve JSON con success ok
     const contentType = res.headers.get("content-type");
-    if (res.ok && contentType && contentType.includes("application/json")) {
+    if (contentType && contentType.includes("application/json")) {
       const data = await res.json();
-      if (data.success) return data;
+      if (res.ok && data.success) return data;
+      if (!res.ok) {
+        throw new Error(data.error || (data.details ? JSON.stringify(data.details) : `HTTP ${res.status}`));
+      }
     }
   } catch (e) {
-    console.warn("Serverless /api/whatsapp no disponible, usando llamada directa client-side a Green API...");
+    console.warn("Serverless /api/whatsapp fallo:", e.message);
   }
 
   // Fallback directo client-side para Firebase Hosting / estático
@@ -74,12 +76,15 @@ export async function editWhatsAppMessage(idMessage, message, customChatId = nul
     });
 
     const contentType = res.headers.get("content-type");
-    if (res.ok && contentType && contentType.includes("application/json")) {
+    if (contentType && contentType.includes("application/json")) {
       const data = await res.json();
-      if (data.success) return data;
+      if (res.ok && data.success) return data;
+      if (!res.ok) {
+        throw new Error(data.error || (data.details ? JSON.stringify(data.details) : `HTTP ${res.status}`));
+      }
     }
   } catch (e) {
-    console.warn("Serverless /api/whatsapp no disponible para edición, usando llamada directa...");
+    console.warn("Serverless /api/whatsapp fallo para edición:", e.message);
   }
 
   // Fallback directo client-side para editMessage
@@ -280,12 +285,15 @@ export async function sendWhatsAppFile(fileUrl, fileName, caption, customChatId 
     });
 
     const contentType = res.headers.get("content-type");
-    if (res.ok && contentType && contentType.includes("application/json")) {
+    if (contentType && contentType.includes("application/json")) {
       const data = await res.json();
-      if (data.success) return data;
+      if (res.ok && data.success) return data;
+      if (!res.ok) {
+        throw new Error(data.error || (data.details ? JSON.stringify(data.details) : `HTTP ${res.status}`));
+      }
     }
   } catch (e) {
-    console.warn("Serverless /api/whatsapp no disponible para archivo, usando llamada directa client-side...");
+    console.warn("Serverless /api/whatsapp fallo para archivo:", e.message);
   }
 
   // 2. Fallback directo client-side
