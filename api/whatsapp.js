@@ -33,9 +33,10 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Falta el cuerpo del mensaje o archivo' });
     }
 
-    // Credenciales activas y verificadas de Green API
+    // Credenciales activas y verificadas de Green API (Host dedicado 7107)
     const ACTIVE_ID = "710722752167";
     const ACTIVE_TOKEN = "1df6e87131a041749acfc26418ccb66657ccd142c4094a9eb0";
+    const GREEN_HOST = "https://7107.api.greenapi.com";
 
     // Si la variable en Vercel tiene el token viejo o corrupto de la instancia eliminada, forzar las credenciales válidas
     let idInstance = process.env.GREEN_API_ID || ACTIVE_ID;
@@ -71,7 +72,7 @@ export default async function handler(req, res) {
       }
     }
 
-    const url = `https://api.green-api.com/waInstance${idInstance}/${methodPath}/${apiTokenInstance}`;
+    const url = `${GREEN_HOST}/waInstance${idInstance}/${methodPath}/${apiTokenInstance}`;
 
     const response = await fetch(url, {
       method: 'POST',
@@ -97,6 +98,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, data });
   } catch (error) {
     console.error('Excepción en /api/whatsapp:', error);
-    return res.status(500).json({ error: 'Error interno del servidor.' });
+    return res.status(500).json({ error: error.message || 'Error interno del servidor.' });
   }
 }

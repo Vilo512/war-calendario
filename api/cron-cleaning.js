@@ -7,6 +7,7 @@ const BOT_PASSWORD = process.env.BOT_PASSWORD || "WarBot2026!Cleaning";
 
 const GREEN_ID = "710722752167";
 const GREEN_TOKEN = "1df6e87131a041749acfc26418ccb66657ccd142c4094a9eb0";
+const GREEN_HOST = "https://7107.api.greenapi.com";
 const DEFAULT_CLEANING_CHAT_ID = "120363413772081898@g.us";
 const APP_URL = process.env.APP_URL || "https://warlendario.vercel.app";
 
@@ -102,7 +103,7 @@ function toFirestoreFields(obj) {
 }
 
 async function sendWhatsAppMessage(chatId, message) {
-  const url = `https://api.green-api.com/waInstance${GREEN_ID}/sendMessage/${GREEN_TOKEN}`;
+  const url = `${GREEN_HOST}/waInstance${GREEN_ID}/sendMessage/${GREEN_TOKEN}`;
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -280,6 +281,10 @@ export default async function handler(req, res) {
       result = await handlePendingCheck(token);
     } else if (type === 'reminder') {
       result = await handleReminder(token);
+    } else if (type === 'all') {
+      const pendingRes = await handlePendingCheck(token);
+      const reminderRes = await handleReminder(token);
+      result = { pending: pendingRes, reminder: reminderRes };
     } else {
       // Modo auto (evalúa la hora actual en Madrid)
       const madridHour = new Date().toLocaleString("en-US", { timeZone: "Europe/Madrid", hour: "numeric", hour12: false });

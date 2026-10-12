@@ -396,22 +396,23 @@ export default function BookingModal({
 
         const msg = `📢 *${cleanName}*\n📅 *${dateString}* - ⏰ *${timeString}*\n📍 *${selectedRoom}*\n🎯 *Formato:* ${activityLabel} (${targetLabel})\n👥 *Plazas:* ${plazasText}\n🔗 *Apúntate en la App:* ${appUrl}`;
         
-        sendWhatsAppMessage(msg)
-          .then(async (res) => {
-            const msgId = res?.idMessage || res?.data?.idMessage || res?.data?.id || null;
-            if (msgId) {
-              const targetDocId = !isOvernight ? bookingId : doc1Id;
-              try {
-                await updateDoc(doc(db, 'bookings', targetDocId), { whatsapp_message_id: msgId });
-                if (isOvernight) {
-                  await updateDoc(doc(db, 'bookings', doc2Id), { whatsapp_message_id: msgId });
-                }
-              } catch (e) {
-                console.error("Error guardando whatsapp_message_id:", e);
+        try {
+          const res = await sendWhatsAppMessage(msg);
+          const msgId = res?.idMessage || res?.data?.idMessage || res?.data?.id || null;
+          if (msgId) {
+            const targetDocId = !isOvernight ? bookingId : doc1Id;
+            try {
+              await updateDoc(doc(db, 'bookings', targetDocId), { whatsapp_message_id: msgId });
+              if (isOvernight) {
+                await updateDoc(doc(db, 'bookings', doc2Id), { whatsapp_message_id: msgId });
               }
+            } catch (e) {
+              console.error("Error guardando whatsapp_message_id:", e);
             }
-          })
-          .catch(err => console.error("Error enviando WhatsApp:", err));
+          }
+        } catch (err) {
+          console.error("Error enviando WhatsApp:", err);
+        }
       }
 
       onClose();

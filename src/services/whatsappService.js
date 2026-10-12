@@ -2,6 +2,7 @@
 
 const GREEN_API_ID = import.meta.env.VITE_GREEN_API_ID || "710722752167";
 const GREEN_API_TOKEN = import.meta.env.VITE_GREEN_API_TOKEN || "1df6e87131a041749acfc26418ccb66657ccd142c4094a9eb0";
+const GREEN_API_HOST = "https://7107.api.greenapi.com";
 const GREEN_API_CHAT_ID = import.meta.env.VITE_GREEN_API_CHAT_ID || "120363339095444763@g.us";
 export const DEFAULT_CLEANING_CHAT_ID = import.meta.env.VITE_GREEN_API_CLEANING_CHAT_ID || "120363413772081898@g.us";
 
@@ -30,7 +31,7 @@ export async function sendWhatsAppMessage(message, customChatId = null) {
 
   // Fallback directo client-side para Firebase Hosting / estático
   try {
-    const url = `https://api.green-api.com/waInstance${GREEN_API_ID}/sendMessage/${GREEN_API_TOKEN}`;
+    const url = `${GREEN_API_HOST}/waInstance${GREEN_API_ID}/sendMessage/${GREEN_API_TOKEN}`;
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -89,7 +90,7 @@ export async function editWhatsAppMessage(idMessage, message, customChatId = nul
 
   // Fallback directo client-side para editMessage
   try {
-    const url = `https://api.green-api.com/waInstance${GREEN_API_ID}/editMessage/${GREEN_API_TOKEN}`;
+    const url = `${GREEN_API_HOST}/waInstance${GREEN_API_ID}/editMessage/${GREEN_API_TOKEN}`;
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -298,7 +299,7 @@ export async function sendWhatsAppFile(fileUrl, fileName, caption, customChatId 
 
   // 2. Fallback directo client-side
   try {
-    const url = `https://api.green-api.com/waInstance${GREEN_API_ID}/sendFileByUrl/${GREEN_API_TOKEN}`;
+    const url = `${GREEN_API_HOST}/waInstance${GREEN_API_ID}/sendFileByUrl/${GREEN_API_TOKEN}`;
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
