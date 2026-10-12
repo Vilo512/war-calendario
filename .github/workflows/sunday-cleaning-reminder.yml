@@ -2,10 +2,10 @@ name: Sunday Cleaning Reminders
 
 on:
   schedule:
-    # 18:00 hora peninsular española (16:00 UTC en verano CEST / 17:00 UTC en invierno CET)
-    - cron: '0 16 * * 0'
-    # 20:00 hora peninsular española (18:00 UTC en verano CEST / 19:00 UTC en invierno CET)
-    - cron: '0 18 * * 0'
+    # 18:05 hora peninsular española (16:05 UTC en verano CEST / 17:05 UTC en invierno CET)
+    - cron: '5 16 * * 0'
+    # 20:05 hora peninsular española (18:05 UTC en verano CEST / 19:05 UTC en invierno CET)
+    - cron: '5 18 * * 0'
   workflow_dispatch:
     inputs:
       type:
@@ -26,9 +26,9 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             CHECK_TYPE="${{ github.event.inputs.type }}"
-          elif [ "${{ github.event.schedule }}" = "0 16 * * 0" ]; then
+          elif [ "${{ github.event.schedule }}" = "5 16 * * 0" ]; then
             CHECK_TYPE="pending"
-          elif [ "${{ github.event.schedule }}" = "0 18 * * 0" ]; then
+          elif [ "${{ github.event.schedule }}" = "5 18 * * 0" ]; then
             CHECK_TYPE="reminder"
           else
             CHECK_TYPE="all"

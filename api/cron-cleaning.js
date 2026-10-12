@@ -158,9 +158,13 @@ async function handlePendingCheck(token) {
     return { status: 'skipped', reason: 'Limpieza ya completada', weekId: currentWeekId };
   }
 
-  // 2. Si ya se envió la alerta de pendiente, evitar duplicados
+  // 2. Si ya se envió la alerta de pendiente hoy, evitar duplicados
   if (weekData && weekData.pendingAlertSent) {
-    return { status: 'skipped', reason: 'Aviso pendiente ya enviado previamente', weekId: currentWeekId };
+    const pendingSentAt = weekData.pendingAlertSentAt ? new Date(weekData.pendingAlertSentAt) : null;
+    const now = new Date();
+    if (pendingSentAt && (now.getTime() - pendingSentAt.getTime()) < 12 * 3600 * 1000) {
+      return { status: 'skipped', reason: 'Aviso pendiente ya enviado hoy domingo', weekId: currentWeekId };
+    }
   }
 
   const configData = await getFirestoreDoc('cleaning_schedule/config', token);
@@ -216,7 +220,12 @@ async function handleReminder(token) {
   const weekData = await getFirestoreDoc(`cleaning_schedule/${nextWeekId}`, token);
 
   if (weekData && weekData.announcedOnWhatsApp) {
-    return { status: 'skipped', reason: 'Turno ya anunciado previamente', weekId: nextWeekId };
+    const announcedAt = weekData.announcedAt ? new Date(weekData.announcedAt) : null;
+    const now = new Date();
+    // Solo saltar si ya se envió hoy en las últimas 12 horas (evitar duplicados dentro del mismo domingo)
+    if (announcedAt && (now.getTime() - announcedAt.getTime()) < 12 * 3600 * 1000) {
+      return { status: 'skipped', reason: 'Turno ya anunciado hoy domingo', weekId: nextWeekId };
+    }
   }
 
   const configData = await getFirestoreDoc('cleaning_schedule/config', token);
