@@ -20,6 +20,7 @@ import { sendCleaningCompletedNotification } from '../services/whatsappService';
 export default function CleaningCard({ user, userRole }) {
   const [config, setConfig] = useState(null);
   const [weekDoc, setWeekDoc] = useState(null);
+  const [weekDocLoaded, setWeekDocLoaded] = useState(false);
   const [weeksMap, setWeeksMap] = useState({});
   const [userSwaps, setUserSwaps] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -49,12 +50,14 @@ export default function CleaningCard({ user, userRole }) {
 
   // Escuchar estado de la semana actual
   useEffect(() => {
+    setWeekDocLoaded(false);
     const unsub = onSnapshot(doc(db, 'cleaning_schedule', weekId), (docSnap) => {
       if (docSnap.exists()) {
         setWeekDoc(docSnap.data());
       } else {
         setWeekDoc(null);
       }
+      setWeekDocLoaded(true);
     });
     return () => unsub();
   }, [weekId]);
@@ -83,6 +86,27 @@ export default function CleaningCard({ user, userRole }) {
       setSmartSuggestion(suggestion);
     });
   }, [weekId, userRole]);
+
+  // Registrar automáticamente el socio asignado de la semana en curso si aún no existe el documento de la semana
+  useEffect(() => {
+    if (!isCleaningMember(userRole) || loading || !weekDocLoaded || !config) return;
+    if (weekDoc && weekDoc.assigneeName) return;
+
+    const membersList = config.members || [];
+    if (membersList.length === 0) return;
+
+    const sDate = config.startDate?.toDate ? config.startDate.toDate() : (config.startDate ? new Date(config.startDate) : new Date());
+    const def = calculateCurrentAssignee(membersList, sDate);
+    if (!def || !def.assignee) return;
+
+    setDoc(doc(db, 'cleaning_schedule', weekId), {
+      assigneeId: def.assignee.id || 'manual',
+      assigneeName: def.assignee.name,
+      isManual: Boolean(def.assignee.isManual || def.assignee.type === 'manual'),
+      weekRange: weekRange,
+      completed: Boolean(weekDoc?.completed || false)
+    }, { merge: true }).catch(err => console.warn('No se pudo fijar socio de la semana actual:', err));
+  }, [weekId, weekRange, userRole, loading, weekDocLoaded, weekDoc, config]);
 
   // Solo socios y administradores ven la tarjeta de limpieza
   if (!isCleaningMember(userRole)) {
@@ -145,6 +169,9 @@ export default function CleaningCard({ user, userRole }) {
       const completedRole = isCompletedByAdmin ? 'admin' : 'assignee';
 
       await setDoc(doc(db, 'cleaning_schedule', weekId), {
+        assigneeId: assignee?.id || 'manual',
+        assigneeName: assignee?.name || 'Socio',
+        isManual: Boolean(assignee?.isManual || assignee?.type === 'manual'),
         completed: status,
         completedBy: completedByName,
         completedByRole: status ? completedRole : null,
@@ -548,6 +575,8 @@ export default function CleaningCard({ user, userRole }) {
       <CleaningHistoryModal
         isOpen={isHistoryModalOpen}
         onClose={() => setIsHistoryModalOpen(false)}
+        user={user}
+        userRole={userRole}
       />
     </div>
   );

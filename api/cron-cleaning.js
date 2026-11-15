@@ -184,7 +184,7 @@ async function handlePendingCheck(token) {
   } else {
     const startDate = configData.startDate ? new Date(configData.startDate) : new Date();
     const startMon = calculateCurrentMonday(startDate);
-    const diffDays = Math.floor((currentMonday.getTime() - startMon.getTime()) / (1000 * 3600 * 24));
+    const diffDays = Math.round((currentMonday.getTime() - startMon.getTime()) / (1000 * 3600 * 24));
     const weeksPassed = Math.floor(diffDays / 7);
     const currentIndex = ((weeksPassed % members.length) + members.length) % members.length;
     currentAssignee = members[currentIndex];
@@ -245,7 +245,7 @@ async function handleReminder(token) {
   } else {
     const startDate = configData.startDate ? new Date(configData.startDate) : new Date();
     const startMon = calculateCurrentMonday(startDate);
-    const diffDays = Math.floor((nextMonday.getTime() - startMon.getTime()) / (1000 * 3600 * 24));
+    const diffDays = Math.round((nextMonday.getTime() - startMon.getTime()) / (1000 * 3600 * 24));
     const weeksPassed = Math.floor(diffDays / 7);
     const currentIndex = ((weeksPassed % members.length) + members.length) % members.length;
     nextAssignee = members[currentIndex];

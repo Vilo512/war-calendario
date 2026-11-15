@@ -37,7 +37,8 @@ import {
   getNextWeekRange, 
   getNextWeekMonday, 
   calculateAssigneeForDate, 
-  calculateCurrentAssignee 
+  calculateCurrentAssignee,
+  calculateAnchoredStartDate
 } from '../utils/cleaningUtils';
 
 export default function AdminPanel({ isOpen, onClose, user }) {
@@ -317,18 +318,63 @@ export default function AdminPanel({ isOpen, onClose, user }) {
     }
   };
 
-  // Guardar lista completa del cuadrante
-  const saveCleaningMembers = async (membersList) => {
+  const getCurrentRotationIndex = () => {
+    if (!cleaningMembers || cleaningMembers.length === 0) return 0;
+    const currentStartDate = cleaningConfig?.startDate?.toDate
+      ? cleaningConfig.startDate.toDate()
+      : (cleaningConfig?.startDate ? new Date(cleaningConfig.startDate) : new Date());
+    const result = calculateCurrentAssignee(cleaningMembers, currentStartDate);
+    return result ? result.index : 0;
+  };
+
+  // Guardar lista completa del cuadrante preservando el turno actual sin reiniciar la rotación
+  const saveCleaningMembers = async (membersList, targetRotationIndex = null) => {
     try {
+      const currentIdx = targetRotationIndex !== null
+        ? targetRotationIndex
+        : getCurrentRotationIndex();
+      const safeIdx = membersList.length > 0
+        ? ((currentIdx % membersList.length) + membersList.length) % membersList.length
+        : 0;
+      const anchoredStartDate = calculateAnchoredStartDate(safeIdx, new Date());
+
       await setDoc(doc(db, 'cleaning_schedule', 'config'), {
         members: membersList,
-        startDate: new Date()
+        startDate: anchoredStartDate
       }, { merge: true });
-      setMsg('Cuadrante de limpieza actualizado.');
+      setMsg(`Cuadrante de limpieza actualizado (${membersList.length} socios en rotación).`);
       setTimeout(() => setMsg(''), 3000);
     } catch (err) {
       console.error("Error al guardar cuadrante:", err);
       setMsg('Error al guardar cuadrante: ' + err.message);
+    }
+  };
+
+  // Fijar manualmente a un socio como encargado de la semana actual (y continuar la rotación desde él)
+  const handleSetCurrentTurnMember = async (member, index) => {
+    if (!member) return;
+    if (!window.confirm(`¿Fijar a "${member.name}" (#${index + 1}) como encargado de esta semana y continuar la rotación desde su posición?`)) return;
+    try {
+      const anchoredStartDate = calculateAnchoredStartDate(index, new Date());
+      const curWId = getWeekId();
+      const curWRange = formatWeekRange();
+
+      await setDoc(doc(db, 'cleaning_schedule', 'config'), {
+        startDate: anchoredStartDate
+      }, { merge: true });
+
+      await setDoc(doc(db, 'cleaning_schedule', curWId), {
+        assigneeId: member.id || 'manual',
+        assigneeName: member.name,
+        isManual: Boolean(member.isManual),
+        weekRange: curWRange
+      }, { merge: true });
+
+      setMsg(`Turno actual fijado en ${member.name} (#${index + 1}).`);
+      setTimeout(() => setMsg(''), 4000);
+    } catch (err) {
+      console.error("Error fijando turno actual:", err);
+      setMsg('Error al fijar turno: ' + err.message);
     }
   };
 
@@ -511,10 +557,17 @@ export default function AdminPanel({ isOpen, onClose, user }) {
     saveCleaningMembers(newList);
   };
 
-  // Borrar miembro de la lista de limpieza
+  // Borrar miembro de la lista de limpieza preservando el turno actual
   const removeMember = (index) => {
+    const currentIdx = getCurrentRotationIndex();
     const newList = cleaningMembers.filter((_, i) => i !== index);
-    saveCleaningMembers(newList);
+    let nextIdx = currentIdx;
+    if (index < currentIdx) {
+      nextIdx = Math.max(0, currentIdx - 1);
+    } else if (newList.length > 0 && currentIdx >= newList.length) {
+      nextIdx = 0;
+    }
+    saveCleaningMembers(newList, nextIdx);
   };
 
   // Añadir nueva sala
@@ -885,36 +938,99 @@ export default function AdminPanel({ isOpen, onClose, user }) {
               </form>
             </div>
 
-            <h4 style={{ fontSize: '1rem', marginBottom: '0.8rem', color: 'var(--text-secondary)' }}>Orden Rotativo Actual (Semana tras semana)</h4>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem', flexWrap: 'wrap', gap: '0.4rem' }}>
+              <h4 style={{ fontSize: '1rem', margin: 0, color: 'var(--text-secondary)' }}>
+                Orden Rotativo Actual ({cleaningMembers.length} semanas por ciclo)
+              </h4>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                Los nuevos socios se añaden al final sin alterar el turno en curso
+              </span>
+            </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               {cleaningMembers.length === 0 ? (
                 <p style={{ color: 'var(--text-secondary)' }}>No hay nadie en la lista de limpieza. Añade socios arriba.</p>
               ) : (
-                cleaningMembers.map((m, idx) => (
-                  <div key={m.id + '_' + idx} className="booking-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <span style={{ fontWeight: 'bold', marginRight: '8px' }}>#{idx + 1}</span>
-                      <span>{m.name}</span>
-                      {m.isManual && (
-                        <span style={{ fontSize: '0.7rem', color: '#f59e0b', marginLeft: '6px' }}>(Manual)</span>
-                      )}
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-                      <button 
-                        className="btn btn-success" 
-                        style={{ padding: '0.2rem 0.5rem', fontSize: '0.73rem' }} 
-                        onClick={() => handleAdminMarkComplete(m)}
-                        title="Marcar y registrar limpieza completada para este socio"
+                (() => {
+                  const curWId = getWeekId();
+                  const nextWId = getNextWeekId();
+                  const rotIdx = getCurrentRotationIndex();
+                  const nextRotIdx = cleaningMembers.length > 0 ? (rotIdx + 1) % cleaningMembers.length : 0;
+
+                  const curOverrideName = weeksMap[curWId]?.assigneeName || null;
+                  const nextOverrideName = weeksMap[nextWId]?.assigneeName || null;
+
+                  return cleaningMembers.map((m, idx) => {
+                    const isThisWeek = curOverrideName
+                      ? (m.name === curOverrideName || m.id === weeksMap[curWId]?.assigneeId)
+                      : idx === rotIdx;
+                    const isNextWeek = nextOverrideName
+                      ? (m.name === nextOverrideName || m.id === weeksMap[nextWId]?.assigneeId)
+                      : idx === nextRotIdx;
+
+                    return (
+                      <div
+                        key={m.id + '_' + idx}
+                        className="booking-item"
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          flexWrap: 'wrap',
+                          gap: '0.5rem',
+                          borderLeft: isThisWeek
+                            ? '3px solid var(--accent-primary)'
+                            : (isNextWeek ? '3px solid #10b981' : undefined)
+                        }}
                       >
-                        ✓ Validar Limpieza
-                      </button>
-                      <button className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem' }} onClick={() => moveMember(idx, -1)} disabled={idx === 0}>▲</button>
-                      <button className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem' }} onClick={() => moveMember(idx, 1)} disabled={idx === cleaningMembers.length - 1}>▼</button>
-                      <button className="btn" style={{ background: 'var(--danger)', padding: '0.2rem 0.5rem' }} onClick={() => removeMember(idx)}>×</button>
-                    </div>
-                  </div>
-                ))
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 'bold', marginRight: '2px' }}>#{idx + 1}</span>
+                          <span>{m.name}</span>
+                          {m.isManual && (
+                            <span style={{ fontSize: '0.7rem', color: '#f59e0b' }}>(Manual)</span>
+                          )}
+                          {isThisWeek && (
+                            <span style={{ fontSize: '0.68rem', background: 'rgba(99, 102, 241, 0.22)', color: 'var(--accent-primary)', border: '1px solid var(--accent-primary)', padding: '1px 6px', borderRadius: '4px', fontWeight: '700' }}>
+                              Esta semana
+                            </span>
+                          )}
+                          {isNextWeek && (
+                            <span style={{ fontSize: '0.68rem', background: 'rgba(16, 185, 129, 0.18)', color: '#34d399', border: '1px solid #10b981', padding: '1px 6px', borderRadius: '4px', fontWeight: '700' }}>
+                              Próxima semana
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                          {!isThisWeek && (
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              style={{ padding: '0.2rem 0.5rem', fontSize: '0.72rem' }}
+                              onClick={() => handleSetCurrentTurnMember(m, idx)}
+                              title="Fijar el turno de la semana actual en este socio"
+                            >
+                              Fijar turno
+                            </button>
+                          )}
+                          <button 
+                            className="btn btn-success" 
+                            style={{ padding: '0.2rem 0.5rem', fontSize: '0.73rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }} 
+                            onClick={() => handleAdminMarkComplete(m)}
+                            title="Marcar y registrar limpieza completada para este socio"
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            <span>Validar Limpieza</span>
+                          </button>
+                          <button className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem' }} onClick={() => moveMember(idx, -1)} disabled={idx === 0}>▲</button>
+                          <button className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem' }} onClick={() => moveMember(idx, 1)} disabled={idx === cleaningMembers.length - 1}>▼</button>
+                          <button className="btn" style={{ background: 'var(--danger)', padding: '0.2rem 0.5rem' }} onClick={() => removeMember(idx)}>×</button>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()
               )}
             </div>
 
@@ -1293,7 +1409,9 @@ export default function AdminPanel({ isOpen, onClose, user }) {
 
       <CleaningHistoryModal 
         isOpen={isHistoryModalOpen} 
-        onClose={() => setIsHistoryModalOpen(false)} 
+        onClose={() => setIsHistoryModalOpen(false)}
+        user={user}
+        userRole={ROLES.ADMIN}
       />
     </div>
   );

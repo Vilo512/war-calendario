@@ -185,7 +185,7 @@ async function executeSundayPendingCleaningCheck() {
     startMon.setDate(startMon.getDate() - sDay + (sDay === 0 ? -6 : 1));
     startMon.setHours(0, 0, 0, 0);
 
-    const diffDays = Math.floor((currentMonday.getTime() - startMon.getTime()) / (1000 * 3600 * 24));
+    const diffDays = Math.round((currentMonday.getTime() - startMon.getTime()) / (1000 * 3600 * 24));
     const weeksPassed = Math.floor(diffDays / 7);
     const currentIndex = ((weeksPassed % members.length) + members.length) % members.length;
     currentAssignee = members[currentIndex];
@@ -271,7 +271,7 @@ async function executeSundayCleaningReminder() {
     startMon.setDate(startMon.getDate() - sDay + (sDay === 0 ? -6 : 1));
     startMon.setHours(0, 0, 0, 0);
 
-    const diffDays = Math.floor((nextMonday.getTime() - startMon.getTime()) / (1000 * 3600 * 24));
+    const diffDays = Math.round((nextMonday.getTime() - startMon.getTime()) / (1000 * 3600 * 24));
     const weeksPassed = Math.floor(diffDays / 7);
     const currentIndex = ((weeksPassed % members.length) + members.length) % members.length;
     nextAssignee = members[currentIndex];

@@ -47,8 +47,18 @@ export function getWeeksDiff(startDate, targetDate = new Date()) {
   const startMonday = getMonday(startDate);
   const targetMonday = getMonday(targetDate);
   const diffTime = targetMonday.getTime() - startMonday.getTime();
-  const diffDays = Math.floor(diffTime / (1000 * 3600 * 24));
+  // Usar Math.round para evitar desfases de 1 hora por cambios de horario de verano/invierno (DST)
+  const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
   return Math.floor(diffDays / 7);
+}
+
+// Calcular una fecha de inicio anclada para que en referenceDate el turno corresponda exactamente a targetIndex
+export function calculateAnchoredStartDate(targetIndex = 0, referenceDate = new Date()) {
+  const monday = getMonday(referenceDate);
+  const anchored = new Date(monday);
+  anchored.setDate(monday.getDate() - (Math.max(0, targetIndex) * 7));
+  anchored.setHours(12, 0, 0, 0);
+  return anchored;
 }
 
 // Determinar el socio asignado para la semana actual
