@@ -39,6 +39,7 @@
 7. **`cleaning_incidents`**: Reportes de faltas o problemas en el turno de limpieza.
 8. **`announcements`**: Comunicados oficiales (`title`, `content`, `priority`, `durationDays`, `expiresAt`, `createdAt`).
 9. **`config/role_labels`**: Personalización de los nombres de los 4 estatus/roles.
+10. **`tactical_polls`**: Sondeos Tácticos / Tablón de Reclutamiento (`name`, `description`, `preferredRoom`, `targetAudience`, `maxAttendees`, `options`, `participantNotes`, `status`, `userId`, `userName`, `whatsapp_sent`, `whatsapp_message_id`).
 
 ---
 
@@ -86,12 +87,22 @@
   - **Disparadores manuales en Panel de Administración**: Botones para emitir el aviso de limpieza pendiente de la semana en curso y el aviso de la semana entrante bajo demanda.
   - **Diseño sin emojis**: Cumplimiento estricto de la regla del proyecto con iconos SVGs integrados en todos los botones y modales.
 
+- **🎯 Bloque 9: Tablón de Reclutamiento y Sondeos Tácticos (Estilo Doodle) (v1.3.0)**:
+  - **Panel destacado en el Dashboard (`RecruitmentBoard.jsx`)**: Muestra el contador en vivo de sondeos activos, permite plegar/desplegar, alternar entre activos y consolidados, y votar en un clic desde cada tarjeta sin bloquear ninguna sala hasta confirmar fecha.
+  - **Creación híbrida (`TacticalPollModal.jsx`)**: El organizador puede proponer múltiples opciones de fecha concreta o día genérico (Viernes, Sábado, Fin de Semana...) con franjas rápidas (Mañana, Tarde, Noche, Día Flexible, Horario Exacto) O dejarlo en modo "Horario Abierto" para que los integrantes propongan sus propias fechas.
+  - **Coordinación y votación interactiva (`TacticalPollDetailModal.jsx`)**:
+    - Votación por opción ("Disponible" / "Dudoso") con indicador automático de **"MAYOR QUÓRUM"**.
+    - Cualquier integrante autorizado puede proponer nuevas fechas/franjas en vivo dentro del sondeo.
+    - **Cuadrante de Disponibilidad General**: Etiquetas rápidas semanales (`Viernes Tarde`, `Sábado Mañana`, `Sábado Tarde`, etc.) y notas libres de horario por integrante.
+  - **Consolidación en 1 clic a Reserva Oficial**: Botón **"Confirmar y Crear Reserva Oficial"** para organizadores y administradores que abre `BookingModal.jsx` con la fecha/hora ganadora y todos los integrantes disponibles ya cargados en la lista de pre-apuntados, marcando automáticamente el sondeo como consolidado.
+  - **Integración con WhatsApp (`whatsappService.js`)**: Notificación opcional al grupo de Avisos con enlace directo `?poll=<id>` y actualización automática del mensaje en WhatsApp conforme se suman votos.
+
 ---
 
 ## 🔒 4. Respaldo y Restauración
 
-- **Último Checkpoint de Respaldo**: `backup-cleaning-notifications-complete` (30 de Septiembre de 2026)
-- **Checkpoints Anteriores**: `backup-post-activity-description`, `backup-pre-activity-description`
+- **Último Checkpoint de Respaldo**: `backup-post-doodle-feature` (15 de Noviembre de 2026)
+- **Checkpoints Anteriores**: `backup-pre-doodle-feature`, `backup-cleaning-notifications-complete`, `backup-post-activity-description`
 - **Archivo Zip Físico**: `_backups/`
 - **Tag Histórico MVP**: `v1.0.0-mvp-complete`
-- **Comando de Restauración**: `git checkout backup-cleaning-notifications-complete`
+- **Comando de Restauración**: `git checkout backup-post-doodle-feature`

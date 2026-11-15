@@ -66,12 +66,15 @@ export default function BookingModal({
     return () => unsub();
   }, [isOpen]);
 
-  // Inicializar o resetear el formulario cuando se abre el modal (soporta duplicado)
+  // Inicializar o resetear el formulario cuando se abre el modal (soporta duplicado y consolidación desde Sondeo Táctico)
   useEffect(() => {
     if (isOpen) {
       if (duplicateBookingData) {
+        const isFromPoll = Boolean(duplicateBookingData.fromPollId);
         setFormData({
-          name: duplicateBookingData.name ? `${duplicateBookingData.name} (Copia)` : '',
+          name: duplicateBookingData.name
+            ? (isFromPoll ? duplicateBookingData.name : `${duplicateBookingData.name} (Copia)`)
+            : '',
           room: initialRoom || duplicateBookingData.room || (roomsList[0] || ''),
           date: initialDate || duplicateBookingData.date || new Date().toISOString().split('T')[0],
           startTime: duplicateBookingData.startTime || '10:00',
@@ -111,6 +114,7 @@ export default function BookingModal({
   if (!isOpen) return null;
 
   const userCanBook = canBookUser(userRole);
+  const isConsolidatingPoll = Boolean(duplicateBookingData && duplicateBookingData.fromPollId);
 
   // Helper para formatear YYYY-MM-DD a DD-MM-YYYY
   const formatDisplayDateDMY = (isoDateStr) => {
@@ -272,11 +276,15 @@ export default function BookingModal({
 
     setSubmitting(true);
     try {
+      let createdBookingId = null;
+      let createdDoc1Id = null;
+      let createdDoc2Id = null;
+
       if (!isOvernight) {
         // Reserva estándar dentro del mismo día
         const formattedTime = `${formData.startTime} - ${formData.endTime}`;
-        const bookingId = `${selectedRoom.replace(/\s+/g, '_')}_${formData.date}_${formData.startTime.replace(':', '-')}_${formData.endTime.replace(':', '-')}_${Date.now()}`;
-        const bookingRef = doc(db, 'bookings', bookingId);
+        createdBookingId = `${selectedRoom.replace(/\s+/g, '_')}_${formData.date}_${formData.startTime.replace(':', '-')}_${formData.endTime.replace(':', '-')}_${Date.now()}`;
+        const bookingRef = doc(db, 'bookings', createdBookingId);
 
         await runTransaction(db, async (transaction) => {
           const bookingDoc = await transaction.get(bookingRef);
@@ -299,17 +307,18 @@ export default function BookingModal({
             userEmail: user ? user.email : '',
             userName: user ? (user.displayName || user.email) : 'Anónimo',
             createdAt: new Date(),
-            whatsapp_sent: formData.announceOnWhatsApp ? true : false
+            whatsapp_sent: formData.announceOnWhatsApp ? true : false,
+            fromPollId: isConsolidatingPoll ? duplicateBookingData.fromPollId : null
           });
         });
       } else {
         // Reserva Trasnoche (Cruza medianoche: dividida en 2 segmentos vinculados)
         const groupId = `overnight_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-        const doc1Id = `${selectedRoom.replace(/\s+/g, '_')}_${formData.date}_${formData.startTime.replace(':', '-')}_23-59_${Date.now()}`;
-        const doc2Id = `${selectedRoom.replace(/\s+/g, '_')}_${nextDateStr}_00-00_${formData.endTime.replace(':', '-')}_${Date.now()}`;
+        createdDoc1Id = `${selectedRoom.replace(/\s+/g, '_')}_${formData.date}_${formData.startTime.replace(':', '-')}_23-59_${Date.now()}`;
+        createdDoc2Id = `${selectedRoom.replace(/\s+/g, '_')}_${nextDateStr}_00-00_${formData.endTime.replace(':', '-')}_${Date.now()}`;
 
-        const ref1 = doc(db, 'bookings', doc1Id);
-        const ref2 = doc(db, 'bookings', doc2Id);
+        const ref1 = doc(db, 'bookings', createdDoc1Id);
+        const ref2 = doc(db, 'bookings', createdDoc2Id);
 
         await runTransaction(db, async (transaction) => {
           const snap1 = await transaction.get(ref1);
@@ -340,7 +349,8 @@ export default function BookingModal({
             userEmail: user ? user.email : '',
             userName: user ? (user.displayName || user.email) : 'Anónimo',
             createdAt: new Date(),
-            whatsapp_sent: formData.announceOnWhatsApp ? true : false
+            whatsapp_sent: formData.announceOnWhatsApp ? true : false,
+            fromPollId: isConsolidatingPoll ? duplicateBookingData.fromPollId : null
           });
 
           transaction.set(ref2, {
@@ -363,9 +373,25 @@ export default function BookingModal({
             userEmail: user ? user.email : '',
             userName: user ? (user.displayName || user.email) : 'Anónimo',
             createdAt: new Date(),
-            whatsapp_sent: formData.announceOnWhatsApp ? true : false
+            whatsapp_sent: formData.announceOnWhatsApp ? true : false,
+            fromPollId: isConsolidatingPoll ? duplicateBookingData.fromPollId : null
           });
         });
+      }
+
+      // Si viene de un Sondeo Táctico, marcar el sondeo como consolidado
+      if (isConsolidatingPoll && duplicateBookingData.fromPollId) {
+        try {
+          await updateDoc(doc(db, 'tactical_polls', duplicateBookingData.fromPollId), {
+            status: 'confirmed',
+            confirmedBookingId: !isOvernight ? createdBookingId : createdDoc1Id,
+            confirmedDate: formData.date,
+            confirmedRoom: selectedRoom,
+            confirmedTime: `${formData.startTime} - ${formData.endTime}`
+          });
+        } catch (pollErr) {
+          console.error('Error marcando Sondeo Táctico como consolidado:', pollErr);
+        }
       }
       
       // Enviar notificación a WhatsApp con fecha DD-MM-YYYY
@@ -400,11 +426,11 @@ export default function BookingModal({
           const res = await sendWhatsAppMessage(msg);
           const msgId = res?.idMessage || res?.data?.idMessage || res?.data?.id || null;
           if (msgId) {
-            const targetDocId = !isOvernight ? bookingId : doc1Id;
+            const targetDocId = !isOvernight ? createdBookingId : createdDoc1Id;
             try {
               await updateDoc(doc(db, 'bookings', targetDocId), { whatsapp_message_id: msgId });
               if (isOvernight) {
-                await updateDoc(doc(db, 'bookings', doc2Id), { whatsapp_message_id: msgId });
+                await updateDoc(doc(db, 'bookings', createdDoc2Id), { whatsapp_message_id: msgId });
               }
             } catch (e) {
               console.error("Error guardando whatsapp_message_id:", e);
@@ -429,10 +455,40 @@ export default function BookingModal({
       <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '580px', width: '92%', maxHeight: '90vh', overflowY: 'auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
           <h2 className="title" style={{ fontSize: '1.4rem', margin: 0 }}>
-            {duplicateBookingData ? '📑 Duplicar / Clonar Reserva' : 'Nueva Reserva'}
+            {isConsolidatingPoll
+              ? 'Consolidar Sondeo en Reserva'
+              : (duplicateBookingData ? 'Duplicar / Clonar Reserva' : 'Nueva Reserva')}
           </h2>
-          <button className="btn btn-secondary" style={{ padding: '0.2rem 0.6rem' }} onClick={onClose}>✕</button>
+          <button className="btn btn-secondary" style={{ padding: '0.2rem 0.6rem' }} onClick={onClose}>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
+
+        {isConsolidatingPoll && (
+          <div style={{
+            background: 'rgba(16, 185, 129, 0.1)',
+            border: '1px solid #10b981',
+            borderRadius: '8px',
+            padding: '0.75rem 0.9rem',
+            fontSize: '0.83rem',
+            color: '#d1fae5',
+            marginBottom: '1.2rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.6rem'
+          }}>
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#10b981" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+            <div>
+              <strong>Consolidando Sondeo Táctico:</strong> Revisa la sala, fecha definitiva y horario. Los integrantes que votaron disponibilidad ya están cargados en la lista de pre-apuntados.
+            </div>
+          </div>
+        )}
 
         {!userCanBook ? (
           <div style={{ textAlign: 'center', padding: '1rem' }}>
@@ -514,17 +570,23 @@ export default function BookingModal({
             {/* Aviso visual si se detecta Reserva Trasnoche */}
             {isOvernight && (
               <div style={{ background: 'rgba(139, 92, 246, 0.15)', border: '1px solid var(--accent-primary)', borderRadius: '8px', padding: '0.7rem 0.9rem', fontSize: '0.85rem', color: '#c4b5fd', marginBottom: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <span style={{ fontSize: '1.2rem' }}>🌙</span>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                </svg>
                 <div>
                   <strong>Reserva Trasnoche Detectada:</strong> La reserva abarcará de <strong>{formData.startTime}</strong> a <strong>23:59</strong> el <strong>{formatDisplayDateDMY(formData.date)}</strong> y continuará de <strong>00:00</strong> a <strong>{formData.endTime}</strong> el <strong>{formatDisplayDateDMY(nextDateStr)}</strong>.
                 </div>
               </div>
             )}
 
-            {/* Configuración Bloque 4: Tipo de Actividad & Público Objetivo (Apilados verticalmente a Full Width para evitar overflow) */}
+            {/* Configuración Bloque 4: Tipo de Actividad & Público Objetivo */}
             <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border-light)', padding: '1rem', borderRadius: '8px', marginBottom: '1.2rem', width: '100%', boxSizing: 'border-box' }}>
               <h4 style={{ margin: '0 0 0.9rem 0', fontSize: '0.95rem', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                ⚙️ Ajustes de Asistencia y Accesibilidad
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
+                <span>Ajustes de Asistencia y Accesibilidad</span>
               </h4>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem', width: '100%', boxSizing: 'border-box' }}>
@@ -539,8 +601,8 @@ export default function BookingModal({
                     onChange={(e) => setFormData({ ...formData, activityType: e.target.value })}
                     style={{ width: '100%', boxSizing: 'border-box', padding: '0.65rem 0.8rem', fontSize: '0.9rem' }}
                   >
-                    <option value="open">🔓 Abierta (Cualquiera puede unirse)</option>
-                    <option value="closed">🔒 Cerrada / Privada (Mesa reservada)</option>
+                    <option value="open">Abierta (Cualquiera puede unirse)</option>
+                    <option value="closed">Cerrada / Privada (Mesa reservada)</option>
                   </select>
                 </div>
 
@@ -555,9 +617,9 @@ export default function BookingModal({
                     onChange={(e) => setFormData({ ...formData, targetAudience: e.target.value })}
                     style={{ width: '100%', boxSizing: 'border-box', padding: '0.65rem 0.8rem', fontSize: '0.9rem' }}
                   >
-                    <option value="publico">🌐 Público General (Todos)</option>
-                    <option value="semisocios">🤝 Socios y Simpatizantes</option>
-                    <option value="socios">⭐ Exclusivo para Socios</option>
+                    <option value="publico">Público General (Todos)</option>
+                    <option value="semisocios">Socios y Simpatizantes</option>
+                    <option value="socios">Exclusivo para Socios</option>
                   </select>
                 </div>
 
@@ -570,7 +632,7 @@ export default function BookingModal({
                       checked={formData.announceOnWhatsApp}
                       onChange={(e) => setFormData({ ...formData, announceOnWhatsApp: e.target.checked })}
                     />
-                    <span>📢 Anunciar en el grupo de WhatsApp de la Asociación</span>
+                    <span>Anunciar en el grupo de WhatsApp de la Asociación</span>
                   </label>
                 </div>
               </div>
@@ -639,8 +701,14 @@ export default function BookingModal({
             {/* Bloque 4: Pre-apuntados (Asistentes Iniciales) */}
             <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border-light)', padding: '1rem', borderRadius: '8px', marginBottom: '1.2rem', width: '100%', boxSizing: 'border-box' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem' }}>
-                <h4 style={{ margin: 0, fontSize: '0.95rem', color: '#ffffff' }}>
-                  👥 Pre-apuntados / Asistentes Iniciales ({preAttendees.length})
+                <h4 style={{ margin: 0, fontSize: '0.95rem', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                  <span>Pre-apuntados / Asistentes Iniciales ({preAttendees.length})</span>
                 </h4>
               </div>
 
@@ -712,7 +780,7 @@ export default function BookingModal({
                         onClick={() => handleRemovePreAttendee(att.uid)}
                         style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, fontWeight: 'bold' }}
                       >
-                        ✕
+                        ×
                       </button>
                     </span>
                   ))}
@@ -723,8 +791,13 @@ export default function BookingModal({
             {/* Alerta dinámica de Conflicto */}
             {hasConflict && (
               <div style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid var(--danger)', borderRadius: '6px', padding: '0.8rem', marginBottom: '1rem' }}>
-                <div style={{ color: 'var(--danger)', fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '0.4rem' }}>
-                  ⚠️ Conflicto de Horario Detectado
+                <div style={{ color: 'var(--danger)', fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                  <span>Conflicto de Horario Detectado</span>
                 </div>
                 {conflicts.map(c => {
                   const rangeDisplay = c.startTime && c.endTime ? `${c.startTime} - ${c.endTime}` : (c.time || '');
@@ -759,7 +832,11 @@ export default function BookingModal({
                 disabled={submitting || hasConflict || isTimeOrderInvalid} 
                 style={{ flex: 1, opacity: (hasConflict || isTimeOrderInvalid) ? 0.5 : 1 }}
               >
-                {submitting ? 'Guardando...' : (duplicateBookingData ? 'Confirmar Reserva Clonada' : 'Confirmar Reserva')}
+                {submitting
+                  ? 'Guardando...'
+                  : (isConsolidatingPoll
+                      ? 'Confirmar Reserva Oficial'
+                      : (duplicateBookingData ? 'Confirmar Reserva Clonada' : 'Confirmar Reserva'))}
               </button>
             </div>
           </form>

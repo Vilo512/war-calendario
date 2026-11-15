@@ -10,6 +10,8 @@ import AdminPanel from './components/AdminPanel';
 import AnnouncementBanner from './components/AnnouncementBanner';
 import AnalyticsPage from './pages/AnalyticsPage';
 import CompleteCleaningModal from './components/CompleteCleaningModal';
+import RecruitmentBoard from './components/RecruitmentBoard';
+import TacticalPollModal from './components/TacticalPollModal';
 import { getRoleLabel, isAdminRole, ROLES, subscribeRoleLabels, DEFAULT_ROLE_LABELS } from './utils/roleUtils';
 import { subscribeOpenIncidents } from './services/cleaningIncidentService';
 import './index.css';
@@ -19,6 +21,8 @@ export default function App() {
   const [userProfile, setUserProfile] = useState(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPollModalOpen, setIsPollModalOpen] = useState(false);
+  const [initialPollId, setInitialPollId] = useState(null);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [completeCleaningWeekId, setCompleteCleaningWeekId] = useState(null);
   const [openIncidentsCount, setOpenIncidentsCount] = useState(0);
@@ -36,14 +40,17 @@ export default function App() {
     const handlePopState = () => setCurrentPath(window.location.pathname);
     window.addEventListener('popstate', handlePopState);
     
-    // Comprobar parámetros de acción en URL (ej. ?action=complete_cleaning&weekId=...)
+    // Comprobar parámetros de acción en URL (ej. ?action=complete_cleaning&weekId=... o ?poll=...)
     try {
       const searchParams = new URLSearchParams(window.location.search);
       if (searchParams.get('action') === 'complete_cleaning' && searchParams.get('weekId')) {
         setCompleteCleaningWeekId(searchParams.get('weekId'));
       }
+      if (searchParams.get('poll')) {
+        setInitialPollId(searchParams.get('poll'));
+      }
     } catch (e) {
-      console.warn("Error leyendo query params de limpieza:", e);
+      console.warn("Error leyendo query params:", e);
     }
 
     return () => window.removeEventListener('popstate', handlePopState);
@@ -58,6 +65,12 @@ export default function App() {
   const handleDuplicateBooking = (booking) => {
     setDuplicateBookingData(booking);
     setBookingInitialData({ date: booking.date || '', room: booking.room || '' });
+    setIsModalOpen(true);
+  };
+
+  const handleConvertPollToBooking = (bookingTemplate) => {
+    setDuplicateBookingData(bookingTemplate);
+    setBookingInitialData({ date: bookingTemplate.date || '', room: bookingTemplate.room || '' });
     setIsModalOpen(true);
   };
 
@@ -261,6 +274,24 @@ export default function App() {
               </>
             )}
 
+            <button
+              className="btn btn-secondary"
+              onClick={() => setIsPollModalOpen(true)}
+              style={{ borderColor: '#10b981', color: '#34d399', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              title="Crear un Sondeo Táctico (estilo Doodle) para cuadrar fechas y horarios"
+            >
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <circle cx="12" cy="12" r="6" />
+                <circle cx="12" cy="12" r="2" />
+                <line x1="12" y1="2" x2="12" y2="4" />
+                <line x1="12" y1="20" x2="12" y2="22" />
+                <line x1="2" y1="12" x2="4" y2="12" />
+                <line x1="20" y1="12" x2="22" y2="12" />
+              </svg>
+              <span>Sondeo Táctico</span>
+            </button>
+
             <button className="btn" onClick={() => handleOpenBooking()}>
               <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '6px'}}>
                 <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -276,6 +307,14 @@ export default function App() {
 
       <div className="grid-dashboard">
         <div>
+          <RecruitmentBoard
+            user={user}
+            userRole={userRole}
+            onOpenNewPoll={() => setIsPollModalOpen(true)}
+            onConvertPollToBooking={handleConvertPollToBooking}
+            initialPollId={initialPollId}
+            onClearInitialPollId={() => setInitialPollId(null)}
+          />
           <CalendarView 
             user={user} 
             userRole={userRole} 
@@ -299,6 +338,13 @@ export default function App() {
         initialDate={bookingInitialData.date}
         initialRoom={bookingInitialData.room}
         duplicateBookingData={duplicateBookingData}
+      />
+
+      <TacticalPollModal
+        isOpen={isPollModalOpen}
+        onClose={() => setIsPollModalOpen(false)}
+        user={user}
+        userRole={userRole}
       />
       
       {isAdminOpen && <AdminPanel isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} user={user} />}

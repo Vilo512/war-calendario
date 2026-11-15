@@ -171,6 +171,47 @@ export function buildWhatsAppCancelText(booking) {
   return `❌ *[EVENTO CANCELADO]* ❌\n📢 *${name}*\n📅 *${displayDate}* - ⏰ *${timeText}*\n📍 *${room}*\n\n_Este evento ha sido cancelado en el calendario._`;
 }
 
+export function buildWhatsAppPollMessageText(poll, pollId = null) {
+  const name = (poll.name || '').trim();
+  const organizer = poll.userName || poll.userEmail || 'Socio';
+  const preferredRoom = poll.preferredRoom || 'Cualquier sala disponible';
+  const targetAudience = poll.targetAudience || 'publico';
+  const maxAttendees = poll.maxAttendees || null;
+  const baseAppUrl = getEffectiveAppUrl();
+  const effectiveId = pollId || poll.id;
+  const pollUrl = effectiveId ? `${baseAppUrl}/?poll=${effectiveId}` : baseAppUrl;
+
+  let targetLabel = '🌐 Público General';
+  if (targetAudience === 'semisocios') targetLabel = '🤝 Socios y Simpatizantes';
+  if (targetAudience === 'socios') targetLabel = '⭐ Exclusivo Socios';
+
+  const options = poll.options || [];
+  let optionsSummary = 'Abierto a que los integrantes indiquen sus días y horarios disponibles';
+  if (options.length > 0) {
+    const formattedOpts = options.slice(0, 5).map(opt => {
+      const timePart = opt.startTime && opt.endTime ? `${opt.startTime}-${opt.endTime}` : (opt.slotLabel || '');
+      return `• ${opt.label}${timePart ? ` (${timePart})` : ''}`;
+    });
+    if (options.length > 5) {
+      formattedOpts.push(`• ...y ${options.length - 5} opción(es) más`);
+    }
+    optionsSummary = formattedOpts.join('\n');
+  }
+
+  const allVoters = new Set();
+  options.forEach(opt => {
+    (opt.votes || []).forEach(v => allVoters.add(v.name || v.uid));
+  });
+  (poll.participantNotes || []).forEach(n => allVoters.add(n.name || n.uid));
+  const totalInterested = allVoters.size;
+
+  const plazasText = maxAttendees
+    ? `${totalInterested}/${maxAttendees} interesados`
+    : (totalInterested > 0 ? `${totalInterested} interesado(s)` : 'Sin límite');
+
+  return `🎯 *[SONDEO TÁCTICO / RECLUTAMIENTO]* 🎯\n📢 *${name}*\n👤 *Organiza:* ${organizer}\n📍 *Sala preferida:* ${preferredRoom}\n🛡️ *Acceso:* ${targetLabel}\n👥 *Jugadores:* ${plazasText}\n\n🗓️ *Propuestas de Horario:*\n${optionsSummary}\n\n🔗 *Vota tu disponibilidad o propón horario aquí:*\n${pollUrl}`;
+}
+
 export function getEffectiveAppUrl() {
   if (typeof window !== 'undefined' && window.location) {
     if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
